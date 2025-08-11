@@ -4,6 +4,7 @@ import { auth } from "../../utils/auth";
 export const GET: APIRoute = async ({ request, locals }) => {
   try {
     // Test authentication
+    const basePath = process.env.BASE_PATH;
     const authInstance = await auth(locals.runtime.env);
     const session = await authInstance.api.getSession({
       headers: request.headers,
@@ -34,8 +35,8 @@ export const GET: APIRoute = async ({ request, locals }) => {
           hasImage: !!session.user.image,
         },
         endpoints: {
-          getProfile: "GET /api/user/profile",
-          updateProfile: "POST /api/user/profile",
+          getProfile: `${basePath}/api/user/profile`,
+          updateProfile: `${basePath}/api/user/profile`,
         },
       }),
       {
