@@ -1,13 +1,14 @@
 export interface ProfileUpdateData {
   name: string;
   email: string;
-  avatar?: File;
 }
 
 export interface ProfileResponse {
   success: boolean;
   message?: string;
   error?: string;
+  url?: string;
+  key?: string;
   user?: {
     id: string;
     name: string;
@@ -57,6 +58,34 @@ export async function fetchProfile(): Promise<ProfileData | null> {
 }
 
 /**
+ * Upload avatar file
+ */
+export async function uploadAvatar(file: File): Promise<ProfileResponse> {
+  try {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await fetch(`/app/api/upload-avatar`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data: ProfileResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error uploading avatar:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to upload avatar",
+    };
+  }
+}
+
+/**
  * Update the user's profile data
  */
 export async function updateProfile(
@@ -67,12 +96,7 @@ export async function updateProfile(
     formData.append("name", profileData.name);
     formData.append("email", profileData.email);
 
-    if (profileData.avatar) {
-      formData.append("avatar", profileData.avatar);
-    }
-
-    const basePath = import.meta.env.BASE_URL;
-    const response = await fetch(`${basePath}/api/user/profile`, {
+    const response = await fetch(`/app/api/user/profile`, {
       method: "POST",
       body: formData,
     });
@@ -119,18 +143,29 @@ export function validateProfileData(data: ProfileUpdateData): {
     }
   }
 
-  // Validate avatar file if provided
-  if (data.avatar) {
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
 
-    if (data.avatar.size > maxSize) {
-      errors.push("Avatar file size must be less than 5MB");
-    }
+/**
+ * Validate avatar file
+ */
+export function validateAvatarFile(file: File): {
+  valid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
-    if (!allowedTypes.includes(data.avatar.type)) {
-      errors.push("Avatar must be a JPEG, PNG, GIF, or WebP image");
-    }
+  if (file.size > maxSize) {
+    errors.push("Avatar file size must be less than 5MB");
+  }
+
+  if (!allowedTypes.includes(file.type)) {
+    errors.push("Avatar must be a JPEG, PNG, GIF, or WebP image");
   }
 
   return {
