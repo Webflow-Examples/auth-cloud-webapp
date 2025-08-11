@@ -24,7 +24,7 @@ export class AvatarService {
    */
   async uploadAvatar(
     userId: string,
-    file: ArrayBuffer,
+    file: ArrayBuffer | ReadableStream<Uint8Array>,
     filename?: string
   ): Promise<AvatarUploadResult> {
     try {
