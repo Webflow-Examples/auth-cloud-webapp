@@ -1,6 +1,28 @@
 {
-  "name": "cosmic-builder-dry-run",
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "astro",
   "main": "./dist/_worker.js/index.js",
-  "compatibility_date": "2025-03-03",
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_date": "2025-04-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "demo",
+      "database_id": "0",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "USER_AVATARS",
+      "bucket_name": "user-avatars"
+    }
+  ]
 }
