@@ -310,7 +310,7 @@ const assetsPrefix = import.meta.env.ASSETS_PREFIX || import.meta.env.BASE_URL |
 </Layout>
 
 <script>
-  import { updateProfile, uploadAvatar, validateProfileData, validateAvatarFile } from "../utils/profile-api";
+  import { updateProfile, validateProfileData } from "../utils/profile-api";
   import { authClient } from "../utils/auth-client";
 
   // File upload handling
@@ -349,54 +349,25 @@ const assetsPrefix = import.meta.env.ASSETS_PREFIX || import.meta.env.BASE_URL |
     const name = formData.get('name') as string;
     const email = formData.get('email') as string;
 
-    // Validate profile data
-    const profileValidation = validateProfileData({ name, email });
-    if (!profileValidation.valid) {
-      showStatus(profileValidation.errors.join(', '), 'error');
+    // Validate data
+    const validation = validateProfileData({ name, email, avatar: selectedFile || undefined });
+    if (!validation.valid) {
+      showStatus(validation.errors.join(', '), 'error');
       return;
     }
 
-    // Validate avatar file if selected
-    if (selectedFile) {
-      const avatarValidation = validateAvatarFile(selectedFile);
-      if (!avatarValidation.valid) {
-        showStatus(avatarValidation.errors.join(', '), 'error');
-        return;
-      }
-    }
-
-    // Show loading state
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ffffff; border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; margin-right: 8px;"></span>Saving...';
-    showStatus('Updating profile...', 'info');
+      // Show loading state
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ffffff; border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; margin-right: 8px;"></span>Saving...';
+  showStatus('Updating profile...', 'info');
 
     try {
-      let avatarUrl: string | undefined;
-      
-      // Upload avatar first if selected
-      if (selectedFile) {
-        showStatus('Uploading avatar...', 'info');
-        const uploadResult = await uploadAvatar(selectedFile);
-        if (!uploadResult.success) {
-          showStatus(uploadResult.error || 'Failed to upload avatar', 'error');
-          return;
-        }
-        avatarUrl = uploadResult.url;
-        showStatus('Avatar uploaded successfully!', 'success');
-      }
-
-      // Update profile data
-      const result = await updateProfile({ name, email });
+      const result = await updateProfile({ name, email, avatar: selectedFile || undefined });
       
       if (result.success) {
         showStatus('Profile updated successfully!', 'success');
         selectedFile = null; // Reset file selection
         avatarInput.value = ''; // Reset file input
-        
-        // Update the avatar preview if a new one was uploaded
-        if (avatarUrl) {
-          currentAvatar.src = avatarUrl;
-        }
       } else {
         showStatus(result.error || 'Failed to update profile', 'error');
       }

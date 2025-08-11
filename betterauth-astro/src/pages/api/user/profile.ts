@@ -134,8 +134,67 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const db = getDb(locals.runtime.env.DB);
     let avatarUrl = session.user.image; // Keep existing avatar if no new one uploaded
 
-    // Note: Avatar uploads are now handled by a separate endpoint (/api/upload-avatar)
-    // This endpoint only handles profile data updates
+    // Handle avatar upload if provided
+    if (avatarFile && avatarFile.size > 0) {
+      console.log("Avatar file detected:", {
+        name: avatarFile.name,
+        size: avatarFile.size,
+        type: avatarFile.type,
+      });
+      const bucket = locals.runtime.env.USER_AVATARS;
+      const avatarService = createAvatarService(
+        bucket,
+        new URL(request.url).origin
+      );
+
+      // Validate the file
+      const validation = avatarService.validateFile(avatarFile);
+      if (!validation.valid) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: validation.error,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Delete old avatar if it exists
+      if (session.user.image) {
+        // Extract key from existing URL
+        const existingKey = session.user.image.split(
+          `${basePath}/api/avatars/`
+        )[1];
+        if (existingKey) {
+          await avatarService.deleteAvatar(userId, existingKey);
+        }
+      }
+
+      // Upload file as a stream to avoid memory issues
+      console.log("Uploading file as stream...");
+      const fileStream = avatarFile.stream();
+      console.log("File stream created, size:", avatarFile.size);
+
+      console.log("Uploading avatar...");
+      const uploadResult = await avatarService.uploadAvatar(
+        userId,
+        fileStream,
+        avatarFile.name
+      );
+      console.log("Upload result:", uploadResult);
+
+      if (!uploadResult.success) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: uploadResult.error || "Failed to upload avatar",
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      avatarUrl = uploadResult.url!;
+    }
 
     // Update user in database
     const updateData: any = {
@@ -187,67 +246,4 @@ export const OPTIONS: APIRoute = async () => {
       "Access-Control-Allow-Credentials": "true",
     },
   });
-};
-
-// New endpoint for getting presigned upload URLs
-export const PUT: APIRoute = async ({ request, locals }) => {
-  try {
-    // Get the authenticated user
-    const authInstance = await auth(locals.runtime.env);
-    const session = await authInstance.api.getSession({
-      headers: request.headers,
-    });
-
-    if (!session?.user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    const userId = session.user.id;
-    const body = (await request.json()) as {
-      filename: string;
-      contentType: string;
-    };
-    const { filename, contentType } = body;
-
-    if (!filename || !contentType) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Filename and content type are required",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    const bucket = locals.runtime.env.USER_AVATARS;
-    const timestamp = Date.now();
-    const extension = filename.split(".").pop() || "jpg";
-    const key = `avatars/${userId}/${timestamp}.${extension}`;
-
-    // Create a presigned URL for direct upload (R2 doesn't support createMultipartUpload)
-    // Instead, we'll use a different approach - let's just return the key and handle upload differently
-    const uploadKey = key;
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        uploadKey: uploadKey,
-        key,
-        url: `${new URL(request.url).origin}/app/api/avatars/${key}`,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Error creating upload URL:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: "Internal server error",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
-  }
 };
