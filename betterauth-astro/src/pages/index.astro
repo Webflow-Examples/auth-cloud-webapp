@@ -18,6 +18,9 @@ if (!session) {
 // Fetch fresh user data
 const userData = await fetchProfile();
 const user = userData || session.user;
+
+// Get the asset prefix from config
+const assetsPrefix = import.meta.env.ASSETS_PREFIX || import.meta.env.BASE_URL || '';
 ---
 
 <Layout>
@@ -77,7 +80,7 @@ const user = userData || session.user;
             <div id="avatar-preview" style={{ marginBottom: '1rem' }}>
               <img 
                 id="current-avatar"
-                src={user?.image || `${import.meta.env.BASE_PATH}/default-avatar.svg`} 
+                src={user?.image || `${assetsPrefix}/default-avatar.svg`} 
                 alt="Profile Picture"
                 style={{
                   width: '120px',
@@ -87,7 +90,7 @@ const user = userData || session.user;
                   border: '3px solid #fff',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                 }}
-                onerror="this.src=`${import.meta.env.BASE_PATH}/default-avatar.svg`"
+                onerror="this.src=`${assetsPrefix}/default-avatar.svg`"
               />
             </div>
             <input 
