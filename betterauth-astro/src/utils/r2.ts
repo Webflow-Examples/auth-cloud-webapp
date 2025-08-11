@@ -1,5 +1,3 @@
-import type { R2Bucket } from "@cloudflare/workers-types";
-
 export interface AvatarUploadResult {
   success: boolean;
   url?: string;

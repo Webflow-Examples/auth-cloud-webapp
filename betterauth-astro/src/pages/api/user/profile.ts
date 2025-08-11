@@ -65,6 +65,8 @@ export const GET: APIRoute = async ({ request, locals }) => {
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
+  // Get the base URL from the request URL
+  const basePath = locals.runtime.env.BASE_URL;
   try {
     // Get the authenticated user
     const authInstance = await auth(locals.runtime.env);
@@ -113,8 +115,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     // Handle avatar upload if provided
     if (avatarFile && avatarFile.size > 0) {
+      const bucket = locals.runtime.env.USER_AVATARS;
       const avatarService = createAvatarService(
-        locals.runtime.env.USER_AVATARS,
+        bucket,
         new URL(request.url).origin
       );
 
@@ -133,7 +136,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       // Delete old avatar if it exists
       if (session.user.image) {
         // Extract key from existing URL
-        const existingKey = session.user.image.split("/api/avatars/")[1];
+        const existingKey = session.user.image.split(
+          `${basePath}/api/avatars/`
+        )[1];
         if (existingKey) {
           await avatarService.deleteAvatar(userId, existingKey);
         }
