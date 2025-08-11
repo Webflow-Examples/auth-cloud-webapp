@@ -19,6 +19,7 @@ export const auth = async (envMap: Cloudflare.Env) => {
     trustedOrigins: [
       "http://localhost:4321",
       "http://localhost:8787",
+      "https://hello-webflow-cloud.webflow.io",
       envMap.BETTER_AUTH_URL || "",
     ],
   });
