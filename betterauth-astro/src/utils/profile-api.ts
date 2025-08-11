@@ -62,12 +62,14 @@ export async function fetchProfile(): Promise<ProfileData | null> {
  */
 export async function uploadAvatar(file: File): Promise<ProfileResponse> {
   try {
-    const formData = new FormData();
-    formData.append("avatar", file);
-
-    const response = await fetch(`/app/api/upload-avatar`, {
+    // Use binary upload to avoid FormData limits
+    const response = await fetch(`/app/api/upload-avatar-binary`, {
       method: "POST",
-      body: formData,
+      headers: {
+        "Content-Type": file.type,
+        "x-filename": file.name,
+      },
+      body: file, // Send the file directly as the request body
     });
 
     if (!response.ok) {
