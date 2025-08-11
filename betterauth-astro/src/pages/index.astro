@@ -2,19 +2,22 @@
 import Layout from '../layouts/Layout.astro';
 import { Section, Container, Block, Link } from '../../devlink/_Builtin/Basic';
 import { auth } from "../utils/auth";
+import { fetchProfile } from "../utils/profile-api";
 
 const authInstance = await auth(Astro.locals.runtime.env);
 
 const session = await authInstance.api.getSession({
   headers: Astro.request.headers,
 });
-const user = session?.user;
 
-// Redirect if already authenticated
+// Redirect if not authenticated
 if (!session) {
   return Astro.redirect("/app/login");
 }
 
+// Fetch fresh user data
+const userData = await fetchProfile();
+const user = userData || session.user;
 ---
 
 <Layout>
@@ -24,54 +27,386 @@ if (!session) {
     className="margin-bottom-24px"
     style={{
       minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
+      padding: '2rem 0'
     }}
   >
     <Container>
-      <Block
-        tag="div"
-        className="hero-split"
-        style={{
-          textAlign: 'center',
-          maxWidth: '600px',
-          margin: '0 auto'
-        }}
-      >
-        <h1 class="margin-bottom-24px">Welcome to Webflow Cloud, {user?.name}</h1>
-        <p class="margin-bottom-24px">You are successfully logged in</p>
-        <div>
-          <Link
-            button={true}
-            options={{
-              href: "#"
-            }}
-            data-action="sign-out"
-            className="button-primary"
-          >
-            Log out
-          </Link>
+                              <Block
+          tag="div"
+          className="profile-container"
+          style={{
+            maxWidth: '800px',
+            margin: '0 auto',
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            padding: '2rem',
+            marginLeft: '1rem',
+            marginRight: '1rem'
+          }}
+        >
+        <!-- Header -->
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h1 style={{
+            fontSize: '2rem',
+            fontWeight: '700',
+            background: 'linear-gradient(83.21deg, #3245ff 0%, #bc52ee 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: '0.5rem'
+          }}>
+            User Profile
+          </h1>
+          <p style={{ color: '#666', margin: '0' }}>
+            Manage your account details and profile picture
+          </p>
+        </div>
+
+        <!-- Profile Form -->
+        <form id="profile-form" style={{ marginBottom: '2rem' }}>
+          <!-- Avatar Section -->
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '2rem',
+            padding: '1rem',
+            border: '2px dashed #e0e0e0',
+            borderRadius: '8px',
+            background: '#fafafa'
+          }}>
+            <div id="avatar-preview" style={{ marginBottom: '1rem' }}>
+              <img 
+                id="current-avatar"
+                src={user?.image || '/default-avatar.svg'} 
+                alt="Profile Picture"
+                style={{
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '3px solid #fff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+                onerror="this.src='/default-avatar.svg'"
+              />
+            </div>
+            <input 
+              type="file" 
+              id="avatar-input" 
+              accept="image/*"
+              style={{ display: 'none' }}
+            />
+            <button 
+              type="button" 
+              id="upload-btn"
+              style={{
+                background: '#3245ff',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '500'
+              }}
+            >
+              Upload New Picture
+            </button>
+            <p style={{ 
+              fontSize: '0.8rem', 
+              color: '#666', 
+              margin: '0.5rem 0 0 0' 
+            }}>
+              JPEG, PNG, GIF, or WebP (max 5MB)
+            </p>
+          </div>
+
+          <!-- User Details Table -->
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ 
+              fontSize: '1.2rem', 
+              fontWeight: '600', 
+              marginBottom: '1rem',
+              color: '#333'
+            }}>
+              Account Details
+            </h3>
+            
+            <div style={{
+              display: 'grid',
+              gap: '1rem'
+            }}>
+              <!-- Name Field -->
+              <div>
+                <label for="name" style={{
+                  display: 'block',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  color: '#555',
+                  marginBottom: '0.5rem'
+                }}>
+                  Full Name *
+                </label>
+                <input 
+                  type="text" 
+                  id="name" 
+                  name="name"
+                  value={user?.name || ''}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <!-- Email Field -->
+              <div>
+                <label for="email" style={{
+                  display: 'block',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  color: '#555',
+                  marginBottom: '0.5rem'
+                }}>
+                  Email Address *
+                </label>
+                <input 
+                  type="email" 
+                  id="email" 
+                  name="email"
+                  value={user?.email || ''}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <!-- Account Info (Read-only) -->
+              <div class="account-info-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1rem',
+                marginTop: '1rem',
+                padding: '1rem',
+                background: '#f8f9fa',
+                borderRadius: '6px'
+              }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: '500',
+                    color: '#666',
+                    marginBottom: '0.25rem'
+                  }}>
+                    Account ID
+                  </label>
+                  <div style={{
+                    fontSize: '0.9rem',
+                    color: '#333',
+                    fontFamily: 'monospace'
+                  }}>
+                    {user?.id || 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: '500',
+                    color: '#666',
+                    marginBottom: '0.25rem'
+                  }}>
+                    Email Verified
+                  </label>
+                  <div style={{
+                    fontSize: '0.9rem',
+                    color: user?.emailVerified ? '#28a745' : '#dc3545'
+                  }}>
+                    {user?.emailVerified ? '✓ Verified' : '✗ Not Verified'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-buttons" style={{
+            display: 'flex',
+            gap: '1rem',
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
+            <button 
+              type="submit" 
+              id="save-btn"
+              style={{
+                background: '#28a745',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 2rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: '500',
+                minWidth: '120px'
+              }}
+            >
+              Save Changes
+            </button>
+            
+            <Link
+              button={true}
+              options={{
+                href: "#"
+              }}
+              data-action="sign-out"
+              className="button-secondary"
+              style={{
+                background: '#6c757d',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 2rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: '500',
+                textDecoration: 'none',
+                display: 'inline-block',
+                minWidth: '120px',
+                textAlign: 'center'
+              }}
+            >
+              Log Out
+            </Link>
+          </div>
+        </form>
+
+        <!-- Status Messages -->
+        <div id="status-message" style={{
+          padding: '1rem',
+          borderRadius: '6px',
+          marginTop: '1rem',
+          display: 'none'
+        }}>
         </div>
       </Block>
     </Container>
   </Section>
 </Layout>
 
-<style>
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    background: linear-gradient(83.21deg, #3245ff 0%, #bc52ee 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-</style>
-
 <script>
+  import { updateProfile, validateProfileData } from "../utils/profile-api";
   import { authClient } from "../utils/auth-client";
 
+  // File upload handling
+  const avatarInput = document.getElementById('avatar-input') as HTMLInputElement;
+  const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
+  const currentAvatar = document.getElementById('current-avatar') as HTMLImageElement;
+  let selectedFile: File | null = null;
+
+  uploadBtn.addEventListener('click', () => {
+    avatarInput.click();
+  });
+
+  avatarInput.addEventListener('change', (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      selectedFile = file;
+      
+      // Preview the selected image
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentAvatar.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Form submission
+  const form = document.getElementById('profile-form') as HTMLFormElement;
+  const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
+  const statusMessage = document.getElementById('status-message') as HTMLDivElement;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(form);
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+
+    // Validate data
+    const validation = validateProfileData({ name, email, avatar: selectedFile || undefined });
+    if (!validation.valid) {
+      showStatus(validation.errors.join(', '), 'error');
+      return;
+    }
+
+      // Show loading state
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ffffff; border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; margin-right: 8px;"></span>Saving...';
+  showStatus('Updating profile...', 'info');
+
+    try {
+      const result = await updateProfile({ name, email, avatar: selectedFile || undefined });
+      
+      if (result.success) {
+        showStatus('Profile updated successfully!', 'success');
+        selectedFile = null; // Reset file selection
+        avatarInput.value = ''; // Reset file input
+      } else {
+        showStatus(result.error || 'Failed to update profile', 'error');
+      }
+    } catch (error) {
+      showStatus('An error occurred while updating profile', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Changes';
+    }
+  });
+
+  // Status message helper
+  function showStatus(message: string, type: 'success' | 'error' | 'info') {
+    statusMessage.textContent = message;
+    statusMessage.style.display = 'block';
+    
+    // Set colors based on type
+    switch (type) {
+      case 'success':
+        statusMessage.style.background = '#d4edda';
+        statusMessage.style.color = '#155724';
+        statusMessage.style.border = '1px solid #c3e6cb';
+        break;
+      case 'error':
+        statusMessage.style.background = '#f8d7da';
+        statusMessage.style.color = '#721c24';
+        statusMessage.style.border = '1px solid #f5c6cb';
+        break;
+      case 'info':
+        statusMessage.style.background = '#d1ecf1';
+        statusMessage.style.color = '#0c5460';
+        statusMessage.style.border = '1px solid #bee5eb';
+        break;
+    }
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      statusMessage.style.display = 'none';
+    }, 5000);
+  }
+
+  // Logout handling
   const signOut = async () => {
     await authClient.signOut({
       fetchOptions: {
@@ -82,5 +417,65 @@ if (!session) {
     });
   };
 
-  document.querySelector("[data-action='sign-out']")?.addEventListener("click", signOut); 
+  document.querySelector("[data-action='sign-out']")?.addEventListener("click", signOut);
 </script>
+
+<style>
+  .button-secondary:hover {
+    background: #5a6268 !important;
+  }
+  
+  #save-btn:hover {
+    background: #218838 !important;
+  }
+  
+  #upload-btn:hover {
+    background: #2a3fcc !important;
+  }
+  
+  input:focus {
+    outline: none;
+    border-color: #3245ff !important;
+    box-shadow: 0 0 0 2px rgba(50, 69, 255, 0.2) !important;
+  }
+
+  /* Loading spinner animation */
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .profile-container {
+      padding: 1rem !important;
+      margin-left: 0.5rem !important;
+      margin-right: 0.5rem !important;
+    }
+    
+    h1 {
+      font-size: 1.5rem !important;
+    }
+    
+    #current-avatar {
+      width: 100px !important;
+      height: 100px !important;
+    }
+    
+    .account-info-grid {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .action-buttons {
+      flex-direction: column !important;
+      align-items: center !important;
+    }
+    
+    .action-buttons button,
+    .action-buttons a {
+      width: 100% !important;
+      max-width: 300px !important;
+    }
+  }
+</style>
