@@ -31,7 +31,7 @@ export interface ProfileData {
  */
 export async function fetchProfile(): Promise<ProfileData | null> {
   try {
-    const response = await fetch("/api/user/profile", {
+    const response = await fetch(`${process.env.BASE_PATH}/api/user/profile`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -70,7 +70,7 @@ export async function updateProfile(
       formData.append("avatar", profileData.avatar);
     }
 
-    const response = await fetch("/api/user/profile", {
+    const response = await fetch(`${process.env.BASE_PATH}/api/user/profile`, {
       method: "POST",
       body: formData,
     });
