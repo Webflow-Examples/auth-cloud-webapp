@@ -7,6 +7,9 @@ import react from "@astrojs/react";
 export default defineConfig({
   base: "/app",
   output: "server",
+  security: {
+    checkOrigin: false,
+  },
   adapter: cloudflare({
     platformProxy: {
       enabled: true,
