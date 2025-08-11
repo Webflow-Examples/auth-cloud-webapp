@@ -68,6 +68,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
   // Get the base URL from the request URL
   const basePath = locals.runtime.env.BASE_URL;
   try {
+    // Log request details for debugging
+    console.log("Profile update request received");
+    console.log("Content-Type:", request.headers.get("content-type"));
+    console.log("Content-Length:", request.headers.get("content-length"));
     // Get the authenticated user
     const authInstance = await auth(locals.runtime.env);
     const session = await authInstance.api.getSession({
@@ -82,7 +86,24 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const userId = session.user.id;
-    const formData = await request.formData();
+
+    // Parse form data with error handling
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+      console.log("FormData parsed successfully");
+    } catch (error) {
+      console.error("Error parsing FormData:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error:
+            "Failed to parse form data. File may be too large or corrupted.",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
     const avatarFile = formData.get("avatar") as File | null;
@@ -115,6 +136,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     // Handle avatar upload if provided
     if (avatarFile && avatarFile.size > 0) {
+      console.log("Avatar file detected:", {
+        name: avatarFile.name,
+        size: avatarFile.size,
+        type: avatarFile.type,
+      });
       const bucket = locals.runtime.env.USER_AVATARS;
       const avatarService = createAvatarService(
         bucket,
@@ -144,11 +170,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
         }
       }
 
-      // Convert File to ArrayBuffer and upload
-      const fileBuffer = await avatarFile.arrayBuffer();
+      // Upload file as a stream to avoid memory issues
+      console.log("Uploading file as stream...");
+      const fileStream = avatarFile.stream();
+      console.log("File stream created, size:", avatarFile.size);
+
       const uploadResult = await avatarService.uploadAvatar(
         userId,
-        fileBuffer,
+        fileStream,
         avatarFile.name
       );
 
