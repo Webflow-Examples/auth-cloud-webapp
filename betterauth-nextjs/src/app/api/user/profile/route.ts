@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       // Delete old avatar if it exists
       if (session.user.image) {
         // Extract key from existing URL
-        const existingKey = session.user.image.split("/app/api/avatars/")[1];
+        const existingKey = session.user.image.split(/next/api/avatars/")[1];
         if (existingKey) {
           await avatarService.deleteAvatar(userId, existingKey);
         }
