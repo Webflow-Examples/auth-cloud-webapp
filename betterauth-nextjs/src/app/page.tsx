@@ -81,7 +81,7 @@ export default function Home() {
             <Link
               button={true}
               options={{
-                href: /next/profile",
+                href: "/next/profile",
               }}
               className="button-primary"
               style={{

@@ -30,7 +30,7 @@ export default function Signup() {
         email,
         password,
         name,
-        callbackURL: /next",
+        callbackURL: "/next",
       });
 
       if (error) {
