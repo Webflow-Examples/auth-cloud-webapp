@@ -28,7 +28,7 @@ export default function Login() {
       const { data, error } = await signIn.email({
         email,
         password,
-        callbackURL: "/app",
+        callbackURL: /next",
       });
 
       if (error) {
