@@ -170,17 +170,50 @@ export const POST: APIRoute = async ({ request, locals }) => {
         }
       }
 
-      // Upload file as a stream to avoid memory issues
-      console.log("Uploading file as stream...");
-      const fileStream = avatarFile.stream();
-      console.log("File stream created, size:", avatarFile.size);
+      // Try streaming first, fallback to ArrayBuffer if needed
+      console.log("Attempting stream upload...");
+      let uploadResult;
 
-      console.log("Uploading avatar...");
-      const uploadResult = await avatarService.uploadAvatar(
-        userId,
-        fileStream,
-        avatarFile.name
-      );
+      try {
+        const fileStream = avatarFile.stream();
+        console.log("File stream created, size:", avatarFile.size);
+
+        uploadResult = await avatarService.uploadAvatar(
+          userId,
+          fileStream,
+          avatarFile.name
+        );
+
+        if (!uploadResult.success) {
+          console.log("Stream upload failed, trying ArrayBuffer...");
+          // Fallback to ArrayBuffer
+          const fileBuffer = await avatarFile.arrayBuffer();
+          console.log(
+            "File converted to ArrayBuffer, size:",
+            fileBuffer.byteLength
+          );
+
+          uploadResult = await avatarService.uploadAvatar(
+            userId,
+            fileBuffer,
+            avatarFile.name
+          );
+        }
+      } catch (error) {
+        console.log("Stream upload error, trying ArrayBuffer...", error);
+        // Fallback to ArrayBuffer
+        const fileBuffer = await avatarFile.arrayBuffer();
+        console.log(
+          "File converted to ArrayBuffer, size:",
+          fileBuffer.byteLength
+        );
+
+        uploadResult = await avatarService.uploadAvatar(
+          userId,
+          fileBuffer,
+          avatarFile.name
+        );
+      }
       console.log("Upload result:", uploadResult);
 
       if (!uploadResult.success) {

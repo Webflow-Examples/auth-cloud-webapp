@@ -42,6 +42,7 @@ export class AvatarService {
       const key = `avatars/${userId}/${timestamp}.${extension}`;
 
       // Upload the file to R2
+      console.log("Starting R2 upload with stream...");
       const uploadResult = await this.bucket.put(key, file, {
         httpMetadata: {
           contentType: this.getContentType(extension),
@@ -52,6 +53,7 @@ export class AvatarService {
           uploadedAt: timestamp.toString(),
         },
       });
+      console.log("R2 upload completed:", uploadResult ? "success" : "failed");
 
       if (!uploadResult) {
         return {
