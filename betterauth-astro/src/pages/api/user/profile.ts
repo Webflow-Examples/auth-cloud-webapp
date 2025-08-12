@@ -107,6 +107,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
     const avatarFile = formData.get("avatar") as File | null;
+    const uploadedAvatarUrl = formData.get("avatarUrl") as string | null;
 
     // Validate required fields
     if (!name || !email) {
@@ -132,7 +133,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const db = getDb(locals.runtime.env.DB);
-    let avatarUrl = session.user.image; // Keep existing avatar if no new one uploaded
+    let avatarUrl = uploadedAvatarUrl || session.user.image; // Use uploaded URL or keep existing avatar
 
     // Handle avatar upload if provided
     if (avatarFile && avatarFile.size > 0) {

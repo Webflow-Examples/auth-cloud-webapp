@@ -31,8 +31,7 @@ export interface ProfileData {
  */
 export async function fetchProfile(): Promise<ProfileData | null> {
   try {
-    const basePath = import.meta.env.BASE_URL;
-    const response = await fetch(`${basePath}/api/user/profile`, {
+    const response = await fetch("/app/api/user/profile", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -63,16 +62,36 @@ export async function updateProfile(
   profileData: ProfileUpdateData
 ): Promise<ProfileResponse> {
   try {
+    // If there's an avatar, upload it separately first
+    let avatarUrl: string | undefined;
+
+    if (profileData.avatar) {
+      const uploadFormData = new FormData();
+      uploadFormData.append("avatar", profileData.avatar);
+
+      const uploadResponse = await fetch("/app/api/upload-avatar", {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status}`);
+      }
+
+      const uploadData = (await uploadResponse.json()) as { url: string };
+      avatarUrl = uploadData.url;
+    }
+
+    // Now update the profile data (without the file)
     const formData = new FormData();
     formData.append("name", profileData.name);
     formData.append("email", profileData.email);
 
-    if (profileData.avatar) {
-      formData.append("avatar", profileData.avatar);
+    if (avatarUrl) {
+      formData.append("avatarUrl", avatarUrl);
     }
 
-    const basePath = import.meta.env.BASE_URL;
-    const response = await fetch(`${basePath}/api/user/profile`, {
+    const response = await fetch("/app/api/user/profile", {
       method: "POST",
       body: formData,
     });
