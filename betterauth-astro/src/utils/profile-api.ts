@@ -35,17 +35,12 @@ export async function fetchProfile(): Promise<ProfileData | null> {
 
   // Construct full URL
   const fullUrl = (() => {
-    // In production, ASSETS_PREFIX is a full URL, so extract just the path
+    // In production, ASSETS_PREFIX is a full URL, so use it directly
     if (
       import.meta.env.MODE === "production" &&
       assetsPrefix.startsWith("http")
     ) {
-      const url = new URL(assetsPrefix);
-      const path = url.pathname;
-
-      return typeof window !== "undefined"
-        ? `${window.location.origin}${path}/api/user/profile`
-        : `${import.meta.env.BETTERAUTH_URL}${path}/api/user/profile`;
+      return `${assetsPrefix}/api/user/profile`;
     }
 
     // In development, ASSETS_PREFIX is just a path
@@ -90,17 +85,12 @@ export async function updateProfile(
 
   // Construct full URL for API calls
   const constructApiUrl = (endpoint: string) => {
-    // In production, ASSETS_PREFIX is a full URL, so extract just the path
+    // In production, ASSETS_PREFIX is a full URL, so use it directly
     if (
       import.meta.env.MODE === "production" &&
       assetsPrefix.startsWith("http")
     ) {
-      const url = new URL(assetsPrefix);
-      const path = url.pathname;
-
-      return typeof window !== "undefined"
-        ? `${window.location.origin}${path}${endpoint}`
-        : `${import.meta.env.BETTERAUTH_URL}${path}${endpoint}`;
+      return `${assetsPrefix}${endpoint}`;
     }
 
     // In development, ASSETS_PREFIX is just a path
