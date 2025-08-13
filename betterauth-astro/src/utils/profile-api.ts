@@ -81,23 +81,21 @@ function getSessionToken(): string | null {
  * Fetch the current user's profile data
  */
 export async function fetchProfile(): Promise<ProfileData | null> {
-  const assetsPrefix = (import.meta.env.ASSETS_PREFIX as string) || "";
-  console.log("assetsPrefix", assetsPrefix);
+  // Use BASE_URL for profile operations (main domain where session cookies are available)
+  const baseUrl = import.meta.env.BASE_URL as string;
+  console.log("baseUrl", baseUrl);
 
   // Construct full URL
   const fullUrl = (() => {
-    // In production, ASSETS_PREFIX is a full URL, so use it directly
-    if (
-      import.meta.env.MODE === "production" &&
-      assetsPrefix.startsWith("http")
-    ) {
-      return `${assetsPrefix}/api/user/profile`;
+    // In production, BASE_URL should be the main domain
+    if (baseUrl.startsWith("http")) {
+      return `${baseUrl}/api/user/profile`;
     }
 
-    // In development, ASSETS_PREFIX is just a path
+    // In development, use window.location.origin
     return typeof window !== "undefined"
-      ? `${window.location.origin}${assetsPrefix}/api/user/profile`
-      : `${import.meta.env.BETTERAUTH_URL}${assetsPrefix}/api/user/profile`;
+      ? `${window.location.origin}${baseUrl}/api/user/profile`
+      : `${import.meta.env.BETTERAUTH_URL}${baseUrl}/api/user/profile`;
   })();
 
   try {
@@ -132,24 +130,9 @@ export async function fetchProfile(): Promise<ProfileData | null> {
 export async function updateProfile(
   profileData: ProfileUpdateData
 ): Promise<ProfileResponse> {
-  const assetsPrefix = (import.meta.env.ASSETS_PREFIX as string) || "";
-  console.log("assetsPrefix", assetsPrefix);
-
-  // Construct full URL for API calls
-  const constructApiUrl = (endpoint: string) => {
-    // In production, ASSETS_PREFIX is a full URL, so use it directly
-    if (
-      import.meta.env.MODE === "production" &&
-      assetsPrefix.startsWith("http")
-    ) {
-      return `${assetsPrefix}${endpoint}`;
-    }
-
-    // In development, ASSETS_PREFIX is just a path
-    return typeof window !== "undefined"
-      ? `${window.location.origin}${assetsPrefix}${endpoint}`
-      : `${import.meta.env.BETTERAUTH_URL}${assetsPrefix}${endpoint}`;
-  };
+  // Use BASE_URL for profile operations (main domain where session cookies are available)
+  const baseUrl = import.meta.env.BASE_URL as string;
+  console.log("baseUrl", baseUrl);
 
   try {
     // If there's an avatar, use the pre-signed URL approach
@@ -225,7 +208,7 @@ export async function updateProfile(
       avatarUrl = uploadData.url;
     }
 
-    // Now update the profile data (without the file)
+    // Now update the profile data (without the file) - use BASE_URL for profile updates
     const formData = new FormData();
     formData.append("name", profileData.name);
     formData.append("email", profileData.email);
@@ -234,11 +217,14 @@ export async function updateProfile(
       formData.append("avatarUrl", avatarUrl);
     }
 
-    const response = await fetch(constructApiUrl("/api/user/profile"), {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
+    const response = await fetch(
+      `${import.meta.env.BASE_URL}/api/user/profile`,
+      {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      }
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -260,7 +246,7 @@ export async function updateProfile(
  * Test function to debug cookie extraction
  */
 export async function testCookieExtraction(): Promise<void> {
-  const assetsPrefix = (import.meta.env.ASSETS_PREFIX as string) || "";
+  const baseUrl = import.meta.env.BASE_URL as string;
 
   // Test the cookie extraction function
   const sessionToken = getSessionToken();
@@ -268,16 +254,13 @@ export async function testCookieExtraction(): Promise<void> {
 
   // Test making a request to the test endpoint
   const testUrl = (() => {
-    if (
-      import.meta.env.MODE === "production" &&
-      assetsPrefix.startsWith("http")
-    ) {
-      return `${assetsPrefix}/api/test-cookies`;
+    if (baseUrl.startsWith("http")) {
+      return `${baseUrl}/api/test-cookies`;
     }
 
     return typeof window !== "undefined"
-      ? `${window.location.origin}${assetsPrefix}/api/test-cookies`
-      : `${import.meta.env.BETTERAUTH_URL}${assetsPrefix}/api/test-cookies`;
+      ? `${window.location.origin}${baseUrl}/api/test-cookies`
+      : `${import.meta.env.BETTERAUTH_URL}${baseUrl}/api/test-cookies`;
   })();
 
   try {
