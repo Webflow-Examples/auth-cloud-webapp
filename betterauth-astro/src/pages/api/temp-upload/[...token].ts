@@ -1,45 +1,79 @@
 import type { APIRoute } from "astro";
-import { auth } from "../../utils/auth";
-import { createAvatarService } from "../../utils/r2";
+import { createAvatarService } from "../../../utils/r2";
 
-export const POST: APIRoute = async ({ request, locals }) => {
-  // Set CORS origin to the main domain since that's where the requests come from
+// Import the upload tokens from the generate endpoint
+// In production, use a proper cache like Cloudflare KV
+declare global {
+  var uploadTokens: Map<
+    string,
+    { userId: string; key: string; expires: number }
+  >;
+}
+
+if (!globalThis.uploadTokens) {
+  globalThis.uploadTokens = new Map();
+}
+
+export const POST: APIRoute = async ({ request, params, locals }) => {
   const corsOrigin = "https://hello-webflow-cloud.webflow.io";
 
   try {
-    // Debug: log incoming headers
-    console.log(
-      "Upload request headers:",
-      Object.fromEntries(request.headers.entries())
-    );
-    console.log("Upload request origin:", request.headers.get("origin"));
-    console.log("Upload request referer:", request.headers.get("referer"));
+    const token = params.token;
 
-    // Get the authenticated user
-    const authInstance = await auth(locals.runtime.env);
-    const session = await authInstance.api.getSession({
-      headers: request.headers,
-    });
-
-    console.log("Session result:", session ? "Found" : "Not found");
-
-    if (!session?.user) {
+    if (!token) {
       return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
+        JSON.stringify({ success: false, error: "Token is required" }),
         {
-          status: 401,
+          status: 400,
           headers: {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Credentials": "true",
           },
         }
       );
     }
 
-    const userId = session.user.id;
+    // Get token data
+    const tokenData = globalThis.uploadTokens.get(token);
+
+    if (!tokenData) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid or expired token" }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
+      );
+    }
+
+    // Check if token is expired
+    if (tokenData.expires < Date.now()) {
+      globalThis.uploadTokens.delete(token);
+      return new Response(
+        JSON.stringify({ success: false, error: "Token has expired" }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
+      );
+    }
+
+    const { userId, key } = tokenData;
     const formData = await request.formData();
     const avatarFile = formData.get("avatar") as File | null;
 
@@ -55,7 +89,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Credentials": "true",
           },
         }
@@ -82,18 +116,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Credentials": "true",
           },
         }
       );
     }
 
-    // Convert to ArrayBuffer for direct upload
+    // Upload the file using the provided key
     const fileBuffer = await avatarFile.arrayBuffer();
-    const uploadResult = await avatarService.uploadAvatar(
+    const uploadResult = await avatarService.uploadAvatarWithKey(
       userId,
       fileBuffer,
+      key,
       avatarFile.name
     );
 
@@ -109,12 +144,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Credentials": "true",
           },
         }
       );
     }
+
+    // Clean up the token
+    globalThis.uploadTokens.delete(token);
 
     return new Response(
       JSON.stringify({
@@ -128,7 +166,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": corsOrigin,
           "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Headers": "Content-Type",
           "Access-Control-Allow-Credentials": "true",
         },
       }
@@ -146,7 +184,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": corsOrigin,
           "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Headers": "Content-Type",
           "Access-Control-Allow-Credentials": "true",
         },
       }
@@ -155,7 +193,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 };
 
 export const OPTIONS: APIRoute = async () => {
-  // Set CORS origin to the main domain since that's where the requests come from
   const corsOrigin = "https://hello-webflow-cloud.webflow.io";
 
   return new Response(null, {
@@ -163,7 +200,7 @@ export const OPTIONS: APIRoute = async () => {
     headers: {
       "Access-Control-Allow-Origin": corsOrigin,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Headers": "Content-Type",
       "Access-Control-Allow-Credentials": "true",
     },
   });
