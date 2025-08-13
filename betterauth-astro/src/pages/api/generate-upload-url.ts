@@ -103,13 +103,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .substring(2)}.${fileExtension}`;
 
     // Generate a temporary upload token with embedded data
+    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
     const tokenData = {
       userId,
       key,
-      expires: Date.now() + 5 * 60 * 1000, // 5 minutes
+      expires,
       signature: crypto
         .createHmac("sha256", locals.runtime.env.BETTER_AUTH_SECRET)
-        .update(`${userId}:${key}:${Date.now()}`)
+        .update(`${userId}:${key}:${expires}`)
         .digest("hex"),
     };
 
