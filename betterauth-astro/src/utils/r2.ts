@@ -72,7 +72,7 @@ export class AvatarService {
       }
 
       // Return the URL that can be used to access the image
-      const url = `${this.baseUrl}${basePath}/api/avatars/${key}`;
+      const url = `${basePath}/api/avatars/${key}`;
 
       return {
         success: true,
@@ -166,7 +166,7 @@ export class AvatarService {
       }
 
       // Return the URL that can be used to access the image
-      const url = `${this.baseUrl}${basePath}/api/avatars/${key}`;
+      const url = `${basePath}/api/avatars/${key}`;
 
       return {
         success: true,
@@ -190,10 +190,10 @@ export class AvatarService {
     const basePath = import.meta.env.ASSETS_PREFIX;
     console.log("basePath", basePath);
     if (key) {
-      return `${this.baseUrl}${basePath}/api/avatars/${key}`;
+      return `${basePath}/api/avatars/${key}`;
     }
     // Return a default avatar URL if no specific key is provided
-    return `${this.baseUrl}${basePath}/api/avatars/default`;
+    return `${basePath}/api/avatars/default`;
   }
 
   /**
