@@ -158,7 +158,7 @@ export async function updateProfile(
     if (profileData.avatar) {
       // Step 1: Generate upload URL - call the main domain where session cookies are available
       const generateUrlResponse = await fetch(
-        `${window.location.origin}/api/generate-upload-url`,
+        `${import.meta.env.BASE_URL}/api/generate-upload-url`,
         {
           method: "POST",
           headers: {
