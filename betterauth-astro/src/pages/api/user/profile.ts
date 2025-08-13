@@ -270,11 +270,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 };
 
 // Handle OPTIONS for CORS
-export const OPTIONS: APIRoute = async () => {
+export const OPTIONS: APIRoute = async ({ locals }) => {
+  // Get the origin URL from the environment variable
+  const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
+
   return new Response(null, {
     status: 200,
     headers: {
-      "Access-Control-Allow-Origin": "https://hello-webflow-cloud.webflow.io",
+      "Access-Control-Allow-Origin": corsOrigin,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Access-Control-Allow-Credentials": "true",
