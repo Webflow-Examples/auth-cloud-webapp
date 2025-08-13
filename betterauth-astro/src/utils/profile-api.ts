@@ -88,22 +88,26 @@ export async function updateProfile(
   const assetsPrefix = (import.meta.env.ASSETS_PREFIX as string) || "";
   console.log("assetsPrefix", assetsPrefix);
 
-  // Construct full URL
-  const baseUrl = (() => {
-    // In production, ASSETS_PREFIX is a full URL, so extract just the base URL
+  // Construct full URL for API calls
+  const constructApiUrl = (endpoint: string) => {
+    // In production, ASSETS_PREFIX is a full URL, so extract just the path
     if (
       import.meta.env.MODE === "production" &&
       assetsPrefix.startsWith("http")
     ) {
       const url = new URL(assetsPrefix);
-      return `${url.protocol}//${url.host}`;
+      const path = url.pathname;
+
+      return typeof window !== "undefined"
+        ? `${window.location.origin}${path}${endpoint}`
+        : `${import.meta.env.BETTERAUTH_URL}${path}${endpoint}`;
     }
 
     // In development, ASSETS_PREFIX is just a path
     return typeof window !== "undefined"
-      ? window.location.origin
-      : import.meta.env.BETTERAUTH_URL;
-  })();
+      ? `${window.location.origin}${assetsPrefix}${endpoint}`
+      : `${import.meta.env.BETTERAUTH_URL}${assetsPrefix}${endpoint}`;
+  };
 
   try {
     // If there's an avatar, upload it separately first
@@ -114,7 +118,7 @@ export async function updateProfile(
       uploadFormData.append("avatar", profileData.avatar);
 
       const uploadResponse = await fetch(
-        `${baseUrl}${assetsPrefix}/api/upload-avatar`,
+        constructApiUrl("/api/upload-avatar"),
         {
           method: "POST",
           body: uploadFormData,
@@ -138,7 +142,7 @@ export async function updateProfile(
       formData.append("avatarUrl", avatarUrl);
     }
 
-    const response = await fetch(`${baseUrl}${assetsPrefix}/api/user/profile`, {
+    const response = await fetch(constructApiUrl("/api/user/profile"), {
       method: "POST",
       body: formData,
     });
