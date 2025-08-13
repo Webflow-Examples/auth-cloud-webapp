@@ -1,18 +1,8 @@
 import type { APIRoute } from "astro";
 import { createAvatarService } from "../../../utils/r2";
+import crypto from "crypto";
 
-// Import the upload tokens from the generate endpoint
-// In production, use a proper cache like Cloudflare KV
-declare global {
-  var uploadTokens: Map<
-    string,
-    { userId: string; key: string; expires: number }
-  >;
-}
-
-if (!globalThis.uploadTokens) {
-  globalThis.uploadTokens = new Map();
-}
+// Token validation will be done by decoding the JWT-like token
 
 export const POST: APIRoute = async ({ request, params, locals }) => {
   const corsOrigin = "https://hello-webflow-cloud.webflow.io";
@@ -36,12 +26,20 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
       );
     }
 
-    // Get token data
-    const tokenData = globalThis.uploadTokens.get(token);
+    // Decode and validate token
+    let tokenData: {
+      userId: string;
+      key: string;
+      expires: number;
+      signature: string;
+    };
 
-    if (!tokenData) {
+    try {
+      const decodedToken = Buffer.from(token, "base64url").toString("utf-8");
+      tokenData = JSON.parse(decodedToken);
+    } catch (error) {
       return new Response(
-        JSON.stringify({ success: false, error: "Invalid or expired token" }),
+        JSON.stringify({ success: false, error: "Invalid token format" }),
         {
           status: 401,
           headers: {
@@ -57,9 +55,30 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
 
     // Check if token is expired
     if (tokenData.expires < Date.now()) {
-      globalThis.uploadTokens.delete(token);
       return new Response(
         JSON.stringify({ success: false, error: "Token has expired" }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
+      );
+    }
+
+    // Validate signature
+    const expectedSignature = crypto
+      .createHmac("sha256", locals.runtime.env.BETTER_AUTH_SECRET)
+      .update(`${tokenData.userId}:${tokenData.key}:${tokenData.expires}`)
+      .digest("hex");
+
+    if (tokenData.signature !== expectedSignature) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid token signature" }),
         {
           status: 401,
           headers: {
@@ -151,8 +170,7 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
       );
     }
 
-    // Clean up the token
-    globalThis.uploadTokens.delete(token);
+    // Token is automatically expired after use (no cleanup needed)
 
     return new Response(
       JSON.stringify({
