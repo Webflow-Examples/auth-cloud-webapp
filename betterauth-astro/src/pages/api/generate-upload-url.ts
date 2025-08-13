@@ -6,7 +6,10 @@ import crypto from "crypto";
 // Tokens are now embedded in the URL and validated cryptographically
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const corsOrigin = "https://hello-webflow-cloud.webflow.io";
+  // Get the origin URL from the BASE_URL environment variable
+  const baseUrl = import.meta.env.BASE_URL;
+  const originURL = new URL(baseUrl);
+  const corsOrigin = originURL.origin;
 
   try {
     // Get the authenticated user
@@ -32,7 +35,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const userId = session.user.id;
-    const body = await request.json();
+    const body = (await request.json()) as {
+      fileName: string;
+      fileType: string;
+      fileSize: number;
+    };
     const { fileName, fileType, fileSize } = body;
 
     if (!fileName || !fileType || !fileSize) {
@@ -165,7 +172,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 };
 
 export const OPTIONS: APIRoute = async () => {
-  const corsOrigin = "https://hello-webflow-cloud.webflow.io";
+  // Get the origin URL from the BASE_URL environment variable
+  const baseUrl = import.meta.env.BASE_URL;
+  const originURL = new URL(baseUrl);
+  const corsOrigin = originURL.origin;
 
   return new Response(null, {
     status: 200,
