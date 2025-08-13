@@ -36,6 +36,11 @@ export async function fetchProfile(): Promise<ProfileData | null> {
   // Construct full URL
   const fullUrl = (() => {
     if (typeof window !== "undefined") {
+      // In browser: if assetsPrefix is a full URL, use it directly
+      if (assetsPrefix.startsWith("http")) {
+        return `${assetsPrefix}/api/user/profile`;
+      }
+      // In browser: if assetsPrefix is just a path, add window.location.origin
       return `${window.location.origin}${assetsPrefix}/api/user/profile`;
     }
 
@@ -83,6 +88,11 @@ export async function updateProfile(
   // Construct full URL
   const baseUrl = (() => {
     if (typeof window !== "undefined") {
+      // In browser: if assetsPrefix is a full URL, extract the base URL
+      if (assetsPrefix.startsWith("http")) {
+        return assetsPrefix.replace(/\/api\/.*$/, ""); // Remove any API path to get base URL
+      }
+      // In browser: if assetsPrefix is just a path, use window.location.origin
       return window.location.origin;
     }
 

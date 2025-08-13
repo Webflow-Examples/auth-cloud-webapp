@@ -20,6 +20,7 @@ export const auth = async (envMap: Cloudflare.Env) => {
       "http://localhost:4321",
       "http://localhost:8787",
       "https://hello-webflow-cloud.webflow.io",
+      import.meta.env.ASSETS_PREFIX as string,
       envMap.BETTER_AUTH_URL || "",
     ],
   });
