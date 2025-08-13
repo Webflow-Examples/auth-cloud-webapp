@@ -8,6 +8,7 @@ import {
   updateProfile,
   validateProfileData,
 } from "@/lib/profile-api";
+import config from "../../../next.config";
 
 interface UserProfile {
   id: string;
@@ -20,6 +21,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  const assetsPrefix = config.assetPrefix;
   const { data: session, isPending } = useSession();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -146,7 +148,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
       <div className="max-w-2xl w-full bg-white rounded-lg shadow-md p-8">
-        <h1 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-wf-visual-sans-semibold">
           Account Details
         </h1>
 
@@ -164,17 +166,18 @@ export default function ProfilePage() {
             {statusMessage.text}
           </div>
         )}
-
         <form onSubmit={handleSubmit}>
           {/* Avatar Section */}
           <div className="text-center mb-8 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
             <div className="mb-4">
               <img
-                src={previewUrl || "/default-avatar.svg"}
+                src={previewUrl || `${assetsPrefix}/default-avatar.svg`}
                 alt="Profile Picture"
                 className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg mx-auto"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = "/default-avatar.svg";
+                  (
+                    e.target as HTMLImageElement
+                  ).src = `${assetsPrefix}/default-avatar.svg`;
                 }}
               />
             </div>

@@ -1,3 +1,5 @@
+import config from "../../next.config";
+
 export interface AvatarUploadResult {
   success: boolean;
   url?: string;
@@ -68,7 +70,7 @@ export class AvatarService {
       }
 
       // Return the URL that can be used to access the image
-      const url = `${this.baseUrl}/next/api/avatars/${key}`;
+      const url = `${this.baseUrl}${config.assetPrefix}/api/avatars/${key}`;
 
       return {
         success: true,
@@ -124,10 +126,10 @@ export class AvatarService {
    */
   getAvatarUrl(userId: string, key?: string): string {
     if (key) {
-      return `${this.baseUrl}/next/api/avatars/${key}`;
+      return `${this.baseUrl}${config.assetPrefix}/api/avatars/${key}`;
     }
     // Return a default avatar URL if no specific key is provided
-    return `${this.baseUrl}/next/api/avatars/default`;
+    return `${this.baseUrl}${config.assetPrefix}/api/avatars/default`;
   }
 
   /**

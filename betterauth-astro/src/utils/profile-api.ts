@@ -30,8 +30,18 @@ export interface ProfileData {
  * Fetch the current user's profile data
  */
 export async function fetchProfile(): Promise<ProfileData | null> {
+  const basePath = import.meta.env.ASSETS_PREFIX;
+  console.log("basePath", basePath);
+
+  // Construct full URL
+  const baseUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://hello-webflow-cloud.webflow.io";
+  const fullUrl = `${baseUrl}${basePath}/api/user/profile`;
+
   try {
-    const response = await fetch("/app/api/user/profile", {
+    const response = await fetch(fullUrl, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -61,6 +71,15 @@ export async function fetchProfile(): Promise<ProfileData | null> {
 export async function updateProfile(
   profileData: ProfileUpdateData
 ): Promise<ProfileResponse> {
+  const basePath = import.meta.env.ASSETS_PREFIX;
+  console.log("basePath", basePath);
+
+  // Construct full URL
+  const baseUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://hello-webflow-cloud.webflow.io";
+
   try {
     // If there's an avatar, upload it separately first
     let avatarUrl: string | undefined;
@@ -69,10 +88,13 @@ export async function updateProfile(
       const uploadFormData = new FormData();
       uploadFormData.append("avatar", profileData.avatar);
 
-      const uploadResponse = await fetch("/app/api/upload-avatar", {
-        method: "POST",
-        body: uploadFormData,
-      });
+      const uploadResponse = await fetch(
+        `${baseUrl}${basePath}/api/upload-avatar`,
+        {
+          method: "POST",
+          body: uploadFormData,
+        }
+      );
 
       if (!uploadResponse.ok) {
         throw new Error(`Upload failed: ${uploadResponse.status}`);
@@ -91,7 +113,7 @@ export async function updateProfile(
       formData.append("avatarUrl", avatarUrl);
     }
 
-    const response = await fetch("/app/api/user/profile", {
+    const response = await fetch(`${baseUrl}${basePath}/api/user/profile`, {
       method: "POST",
       body: formData,
     });

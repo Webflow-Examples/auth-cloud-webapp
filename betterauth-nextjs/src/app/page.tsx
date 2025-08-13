@@ -55,7 +55,7 @@ export default function Home() {
           }}
         >
           <h1
-            className="margin-bottom-24px"
+            className="margin-bottom-24px font-wf-visual-sans-semibold"
             style={{
               fontSize: "2.5rem",
               fontWeight: 700,
@@ -65,8 +65,9 @@ export default function Home() {
               backgroundClip: "text",
             }}
           >
-            {`Welcome to Webflow Cloud, ${session.user?.name}`}
+            {`Welcome to Webflow Cloud`}
           </h1>
+          <h2 className="margin-bottom-24px">{`${session.user?.name}`}</h2>
           <Block tag="p" className="margin-bottom-24px">
             This is a simple test using Basic components with enhanced styling.
           </Block>
@@ -115,6 +116,18 @@ export default function Home() {
               }}
               data-action="sign-out"
               className="button-primary"
+              style={{
+                background: "#6c757d",
+                color: "white",
+                border: "none",
+                padding: "0.75rem 1.5rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
             >
               Log out
             </Link>

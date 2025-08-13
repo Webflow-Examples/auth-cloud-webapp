@@ -66,7 +66,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
 
 export const POST: APIRoute = async ({ request, locals }) => {
   // Get the base URL from the request URL
-  const basePath = locals.runtime.env.BASE_URL;
+  const basePath = locals.runtime.env.ASSETS_PREFIX;
   try {
     // Log request details for debugging
     console.log("Profile update request received");

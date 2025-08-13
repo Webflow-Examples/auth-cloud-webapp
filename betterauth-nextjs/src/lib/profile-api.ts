@@ -1,3 +1,5 @@
+import config from "../../next.config";
+
 export interface ProfileUpdateData {
   name: string;
   email: string;
@@ -76,8 +78,9 @@ export function validateProfileData(data: ProfileUpdateData): {
  * Fetch user profile data
  */
 export async function fetchProfile(): Promise<ProfileResponse> {
+  const assetsPrefix = config.assetPrefix;
   try {
-    const response = await fetch("/next/api/user/profile", {
+    const response = await fetch(`${assetsPrefix}/api/user/profile`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -105,6 +108,7 @@ export async function fetchProfile(): Promise<ProfileResponse> {
 export async function updateProfile(
   profileData: ProfileUpdateData
 ): Promise<ProfileResponse> {
+  const assetsPrefix = config.assetPrefix;
   try {
     // If there's an avatar, upload it separately first
     let avatarUrl: string | undefined;
@@ -113,7 +117,7 @@ export async function updateProfile(
       const uploadFormData = new FormData();
       uploadFormData.append("avatar", profileData.avatar);
 
-      const uploadResponse = await fetch("/next/api/upload-avatar", {
+      const uploadResponse = await fetch(`${assetsPrefix}/api/upload-avatar`, {
         method: "POST",
         body: uploadFormData,
       });
@@ -135,7 +139,7 @@ export async function updateProfile(
       formData.append("avatarUrl", avatarUrl);
     }
 
-    const response = await fetch("/next/api/user/profile", {
+    const response = await fetch(`${assetsPrefix}/api/user/profile`, {
       method: "POST",
       body: formData,
     });
