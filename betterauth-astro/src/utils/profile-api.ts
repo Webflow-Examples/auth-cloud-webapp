@@ -27,6 +27,57 @@ export interface ProfileData {
 }
 
 /**
+ * Extract session token from cookies for cross-origin requests
+ */
+function getSessionToken(): string | null {
+  if (typeof document === "undefined") return null;
+
+  // Debug: log all cookies to see what's available
+  console.log("All cookies:", document.cookie);
+
+  // BetterAuth typically stores session tokens in cookies
+  // Look for common session cookie names - BetterAuth uses a specific format
+  const cookieNames = [
+    "better-auth.session-token",
+    "session-token",
+    "auth-token",
+    "token",
+    "session",
+    "auth",
+    // BetterAuth specific cookie names
+    "better-auth.session",
+    "better-auth.token",
+    "better-auth",
+  ];
+
+  for (const name of cookieNames) {
+    const value = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith(name + "="))
+      ?.split("=")[1];
+
+    if (value) {
+      console.log(`Found session token in cookie: ${name}`);
+      return decodeURIComponent(value);
+    }
+  }
+
+  // If no specific cookie found, try to find any cookie that might contain a session token
+  const allCookies = document.cookie.split("; ");
+  for (const cookie of allCookies) {
+    const [name, value] = cookie.split("=");
+    if (value && value.length > 20) {
+      // Session tokens are typically long
+      console.log(`Trying potential session cookie: ${name}`);
+      return decodeURIComponent(value);
+    }
+  }
+
+  console.log("No session token found in cookies");
+  return null;
+}
+
+/**
  * Fetch the current user's profile data
  */
 export async function fetchProfile(): Promise<ProfileData | null> {
@@ -101,27 +152,76 @@ export async function updateProfile(
   };
 
   try {
-    // If there's an avatar, upload it separately first
+    // If there's an avatar, use the pre-signed URL approach
     let avatarUrl: string | undefined;
 
     if (profileData.avatar) {
-      const uploadFormData = new FormData();
-      uploadFormData.append("avatar", profileData.avatar);
-
-      const uploadResponse = await fetch(
-        constructApiUrl("/api/upload-avatar"),
+      // Step 1: Generate upload URL
+      const generateUrlResponse = await fetch(
+        constructApiUrl("/api/generate-upload-url"),
         {
           method: "POST",
-          body: uploadFormData,
+          headers: {
+            "Content-Type": "application/json",
+          },
           credentials: "include",
+          body: JSON.stringify({
+            fileName: profileData.avatar.name,
+            fileType: profileData.avatar.type,
+            fileSize: profileData.avatar.size,
+          }),
         }
       );
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.status}`);
+      if (!generateUrlResponse.ok) {
+        const errorText = await generateUrlResponse.text();
+        console.error("Generate URL error:", errorText);
+        throw new Error(
+          `Failed to generate upload URL: ${generateUrlResponse.status}`
+        );
       }
 
-      const uploadData = (await uploadResponse.json()) as { url: string };
+      const generateData = (await generateUrlResponse.json()) as {
+        success: boolean;
+        uploadUrl?: string;
+        key?: string;
+        error?: string;
+      };
+      if (!generateData.success) {
+        throw new Error(generateData.error || "Failed to generate upload URL");
+      }
+
+      // Step 2: Upload file using the temporary URL
+      const uploadFormData = new FormData();
+      uploadFormData.append("avatar", profileData.avatar);
+
+      console.log("Uploading to temporary URL:", generateData.uploadUrl);
+
+      const uploadResponse = await fetch(generateData.uploadUrl!, {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      console.log("Upload response status:", uploadResponse.status);
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error("Upload error response:", errorText);
+        throw new Error(
+          `Upload failed: ${uploadResponse.status} - ${errorText}`
+        );
+      }
+
+      const uploadData = (await uploadResponse.json()) as {
+        success: boolean;
+        url?: string;
+        key?: string;
+        error?: string;
+      };
+      if (!uploadData.success) {
+        throw new Error(uploadData.error || "Upload failed");
+      }
+
       avatarUrl = uploadData.url;
     }
 
@@ -153,6 +253,47 @@ export async function updateProfile(
       error:
         error instanceof Error ? error.message : "Failed to update profile",
     };
+  }
+}
+
+/**
+ * Test function to debug cookie extraction
+ */
+export async function testCookieExtraction(): Promise<void> {
+  const assetsPrefix = (import.meta.env.ASSETS_PREFIX as string) || "";
+
+  // Test the cookie extraction function
+  const sessionToken = getSessionToken();
+  console.log("Extracted session token:", sessionToken ? "Found" : "Not found");
+
+  // Test making a request to the test endpoint
+  const testUrl = (() => {
+    if (
+      import.meta.env.MODE === "production" &&
+      assetsPrefix.startsWith("http")
+    ) {
+      return `${assetsPrefix}/api/test-cookies`;
+    }
+
+    return typeof window !== "undefined"
+      ? `${window.location.origin}${assetsPrefix}/api/test-cookies`
+      : `${import.meta.env.BETTERAUTH_URL}${assetsPrefix}/api/test-cookies`;
+  })();
+
+  try {
+    const response = await fetch(testUrl, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log("Test endpoint response:", data);
+    } else {
+      console.error("Test endpoint failed:", response.status);
+    }
+  } catch (error) {
+    console.error("Test endpoint error:", error);
   }
 }
 
