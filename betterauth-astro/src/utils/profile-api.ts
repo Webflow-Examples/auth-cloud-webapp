@@ -55,6 +55,7 @@ export async function fetchProfile(): Promise<ProfileData | null> {
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
     });
 
     if (!response.ok) {
@@ -112,6 +113,7 @@ export async function updateProfile(
         {
           method: "POST",
           body: uploadFormData,
+          credentials: "include",
         }
       );
 
@@ -135,6 +137,7 @@ export async function updateProfile(
     const response = await fetch(constructApiUrl("/api/user/profile"), {
       method: "POST",
       body: formData,
+      credentials: "include",
     });
 
     if (!response.ok) {
