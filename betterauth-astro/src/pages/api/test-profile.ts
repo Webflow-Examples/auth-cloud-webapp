@@ -4,7 +4,8 @@ import { auth } from "../../utils/auth";
 export const GET: APIRoute = async ({ request, locals }) => {
   try {
     // Test authentication
-    const basePath = locals.runtime.env.BASE_URL;
+    const basePath = locals.runtime.env.ASSETS_PREFIX;
+    console.log("basePath", basePath);
     const authInstance = await auth(locals.runtime.env);
     const session = await authInstance.api.getSession({
       headers: request.headers,

@@ -5,8 +5,10 @@ import { createAvatarService } from "@/lib/r2";
 import { getDbAsync } from "@/db/getDb";
 import { user } from "@/db/schema/auth-schema";
 import { eq } from "drizzle-orm";
+import config from "../../../../../next.config";
 
 export async function GET(request: NextRequest) {
+  const assetsPrefix = config.assetPrefix;
   try {
     // Get the authenticated user
     const authInstance = await createAuth();
@@ -66,6 +68,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const assetsPrefix = config.assetPrefix;
   try {
     // Get the authenticated user
     const authInstance = await createAuth();
@@ -139,7 +142,9 @@ export async function POST(request: NextRequest) {
       // Delete old avatar if it exists
       if (session.user.image) {
         // Extract key from existing URL
-        const existingKey = session.user.image.split("/next/api/avatars/")[1];
+        const existingKey = session.user.image.split(
+          `${assetsPrefix}/api/avatars/`
+        )[1];
         if (existingKey) {
           await avatarService.deleteAvatar(userId, existingKey);
         }
