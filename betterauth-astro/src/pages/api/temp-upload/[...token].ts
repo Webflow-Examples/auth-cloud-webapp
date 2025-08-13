@@ -5,7 +5,10 @@ import crypto from "crypto";
 // Token validation will be done by decoding the JWT-like token
 
 export const POST: APIRoute = async ({ request, params, locals }) => {
-  const corsOrigin = "https://hello-webflow-cloud.webflow.io";
+  // Get the origin URL from the BASE_URL environment variable
+  const baseUrl = import.meta.env.BASE_URL;
+  const originURL = new URL(baseUrl);
+  const corsOrigin = originURL.origin;
 
   try {
     const token = params.token;
@@ -211,7 +214,10 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
 };
 
 export const OPTIONS: APIRoute = async () => {
-  const corsOrigin = "https://hello-webflow-cloud.webflow.io";
+  // Get the origin URL from the BASE_URL environment variable
+  const baseUrl = import.meta.env.BASE_URL;
+  const originURL = new URL(baseUrl);
+  const corsOrigin = originURL.origin;
 
   return new Response(null, {
     status: 200,

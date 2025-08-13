@@ -243,44 +243,6 @@ export async function updateProfile(
 }
 
 /**
- * Test function to debug cookie extraction
- */
-export async function testCookieExtraction(): Promise<void> {
-  const baseUrl = import.meta.env.BASE_URL as string;
-
-  // Test the cookie extraction function
-  const sessionToken = getSessionToken();
-  console.log("Extracted session token:", sessionToken ? "Found" : "Not found");
-
-  // Test making a request to the test endpoint
-  const testUrl = (() => {
-    if (baseUrl.startsWith("http")) {
-      return `${baseUrl}/api/test-cookies`;
-    }
-
-    return typeof window !== "undefined"
-      ? `${window.location.origin}${baseUrl}/api/test-cookies`
-      : `${import.meta.env.BETTERAUTH_URL}${baseUrl}/api/test-cookies`;
-  })();
-
-  try {
-    const response = await fetch(testUrl, {
-      method: "GET",
-      credentials: "include",
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Test endpoint response:", data);
-    } else {
-      console.error("Test endpoint failed:", response.status);
-    }
-  } catch (error) {
-    console.error("Test endpoint error:", error);
-  }
-}
-
-/**
  * Validate profile data before submission
  */
 export function validateProfileData(data: ProfileUpdateData): {
