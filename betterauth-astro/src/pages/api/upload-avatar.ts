@@ -3,28 +3,8 @@ import { auth } from "../../utils/auth";
 import { createAvatarService } from "../../utils/r2";
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  // Get CORS origin from environment variables
-  const getCorsOrigin = () => {
-    const baseUrl = import.meta.env.BASE_URL as string;
-    const assetsPrefix = import.meta.env.ASSETS_PREFIX as string;
-
-    // If we have a full URL, extract just the origin
-    if (assetsPrefix && assetsPrefix.startsWith("http")) {
-      const url = new URL(assetsPrefix);
-      return `${url.protocol}//${url.host}`;
-    }
-
-    // If we have a base URL that's a full URL, extract just the origin
-    if (baseUrl && baseUrl.startsWith("http")) {
-      const url = new URL(baseUrl);
-      return `${url.protocol}//${url.host}`;
-    }
-
-    // Fallback to the main domain
-    return "https://hello-webflow-cloud.webflow.io";
-  };
-
-  const corsOrigin = getCorsOrigin();
+  // Set CORS origin to the main domain since that's where the requests come from
+  const corsOrigin = "https://hello-webflow-cloud.webflow.io";
 
   try {
     // Get the authenticated user
@@ -165,27 +145,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 };
 
 export const OPTIONS: APIRoute = async () => {
-  const getCorsOrigin = () => {
-    const baseUrl = import.meta.env.BASE_URL as string;
-    const assetsPrefix = import.meta.env.ASSETS_PREFIX as string;
-
-    // If we have a full URL, extract just the origin
-    if (assetsPrefix && assetsPrefix.startsWith("http")) {
-      const url = new URL(assetsPrefix);
-      return `${url.protocol}//${url.host}`;
-    }
-
-    // If we have a base URL that's a full URL, extract just the origin
-    if (baseUrl && baseUrl.startsWith("http")) {
-      const url = new URL(baseUrl);
-      return `${url.protocol}//${url.host}`;
-    }
-
-    // Fallback to the main domain
-    return "https://hello-webflow-cloud.webflow.io";
-  };
-
-  const corsOrigin = getCorsOrigin();
+  // Set CORS origin to the main domain since that's where the requests come from
+  const corsOrigin = "https://hello-webflow-cloud.webflow.io";
 
   return new Response(null, {
     status: 200,
