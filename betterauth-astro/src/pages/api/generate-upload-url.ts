@@ -6,11 +6,8 @@ import crypto from "crypto";
 // Tokens are now embedded in the URL and validated cryptographically
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  // Get the origin URL from the BASE_URL environment variable
-  const baseUrl = import.meta.env.BASE_URL;
-  const originURL = new URL(baseUrl);
-  const corsOrigin = originURL.origin;
-
+  // Get the origin URL from the environment variable
+  const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
   try {
     // Get the authenticated user
     const authInstance = await auth(locals.runtime.env);
@@ -171,11 +168,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 };
 
-export const OPTIONS: APIRoute = async () => {
-  // Get the origin URL from the BASE_URL environment variable
-  const baseUrl = import.meta.env.BASE_URL;
-  const originURL = new URL(baseUrl);
-  const corsOrigin = originURL.origin;
+export const OPTIONS: APIRoute = async ({ locals }) => {
+  // Get the origin URL from the environment variable
+  const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
 
   return new Response(null, {
     status: 200,
