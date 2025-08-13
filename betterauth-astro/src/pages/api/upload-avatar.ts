@@ -3,6 +3,12 @@ import { auth } from "../../utils/auth";
 import { createAvatarService } from "../../utils/r2";
 
 export const POST: APIRoute = async ({ request, locals }) => {
+  // Get CORS origin from environment variables
+  const corsOrigin =
+    (import.meta.env.BASE_URL as string) ||
+    (import.meta.env.ASSETS_PREFIX as string) ||
+    "https://hello-webflow-cloud.webflow.io";
+
   try {
     // Get the authenticated user
     const authInstance = await auth(locals.runtime.env);
@@ -13,7 +19,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!session?.user) {
       return new Response(
         JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -27,7 +42,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
           success: false,
           error: "No file provided",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -45,7 +69,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
           success: false,
           error: validation.error,
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -63,7 +96,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
           success: false,
           error: uploadResult.error || "Failed to upload avatar",
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -73,7 +115,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
         url: uploadResult.url,
         key: uploadResult.key,
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": corsOrigin,
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Credentials": "true",
+        },
+      }
     );
   } catch (error) {
     console.error("Error uploading avatar:", error);
@@ -82,16 +133,30 @@ export const POST: APIRoute = async ({ request, locals }) => {
         success: false,
         error: "Internal server error",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": corsOrigin,
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Credentials": "true",
+        },
+      }
     );
   }
 };
 
 export const OPTIONS: APIRoute = async () => {
+  const corsOrigin =
+    (import.meta.env.BASE_URL as string) ||
+    (import.meta.env.ASSETS_PREFIX as string) ||
+    "https://hello-webflow-cloud.webflow.io";
+
   return new Response(null, {
     status: 200,
     headers: {
-      "Access-Control-Allow-Origin": "https://hello-webflow-cloud.webflow.io",
+      "Access-Control-Allow-Origin": corsOrigin,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Access-Control-Allow-Credentials": "true",
