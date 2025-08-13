@@ -3,11 +3,7 @@ import { auth } from "../../utils/auth";
 import { createAvatarService } from "../../utils/r2";
 import crypto from "crypto";
 
-// Store temporary upload tokens (in production, use a proper cache like KV)
-const uploadTokens = new Map<
-  string,
-  { userId: string; key: string; expires: number }
->();
+// Tokens are now embedded in the URL and validated cryptographically
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const corsOrigin = "https://hello-webflow-cloud.webflow.io";
@@ -106,26 +102,26 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .toString(36)
       .substring(2)}.${fileExtension}`;
 
-    // Generate a temporary upload token
-    const token = crypto.randomBytes(32).toString("hex");
-    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
-
-    // Store the token with metadata
-    uploadTokens.set(token, {
+    // Generate a temporary upload token with embedded data
+    const tokenData = {
       userId,
       key,
-      expires,
-    });
+      expires: Date.now() + 5 * 60 * 1000, // 5 minutes
+      signature: crypto
+        .createHmac("sha256", locals.runtime.env.BETTER_AUTH_SECRET)
+        .update(`${userId}:${key}:${Date.now()}`)
+        .digest("hex"),
+    };
 
-    // Clean up expired tokens
-    for (const [storedToken, data] of uploadTokens.entries()) {
-      if (data.expires < Date.now()) {
-        uploadTokens.delete(storedToken);
-      }
-    }
+    const token = Buffer.from(JSON.stringify(tokenData)).toString("base64url");
 
-    // Create the upload URL
-    const uploadUrl = `${new URL(request.url).origin}/api/temp-upload/${token}`;
+    // Create the upload URL - use the assets prefix (worker URL) for the actual upload
+    const assetsPrefix = import.meta.env.ASSETS_PREFIX as string;
+    const uploadUrl = assetsPrefix.startsWith("http")
+      ? `${assetsPrefix}/api/temp-upload/${token}`
+      : `${
+          new URL(request.url).origin
+        }${assetsPrefix}/api/temp-upload/${token}`;
 
     return new Response(
       JSON.stringify({
