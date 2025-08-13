@@ -30,15 +30,21 @@ export interface ProfileData {
  * Fetch the current user's profile data
  */
 export async function fetchProfile(): Promise<ProfileData | null> {
-  const basePath = import.meta.env.ASSETS_PREFIX;
-  console.log("basePath", basePath);
+  const assetsPrefix = (import.meta.env.ASSETS_PREFIX as string) || "";
+  console.log("assetsPrefix", assetsPrefix);
 
   // Construct full URL
-  const baseUrl =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://hello-webflow-cloud.webflow.io";
-  const fullUrl = `${baseUrl}${basePath}/api/user/profile`;
+  const fullUrl = (() => {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}${assetsPrefix}/api/user/profile`;
+    }
+
+    if (assetsPrefix.startsWith("http")) {
+      return `${assetsPrefix}/api/user/profile`;
+    }
+
+    return `https://hello-webflow-cloud.webflow.io${assetsPrefix}/api/user/profile`;
+  })();
 
   try {
     const response = await fetch(fullUrl, {
@@ -71,14 +77,21 @@ export async function fetchProfile(): Promise<ProfileData | null> {
 export async function updateProfile(
   profileData: ProfileUpdateData
 ): Promise<ProfileResponse> {
-  const basePath = import.meta.env.ASSETS_PREFIX;
-  console.log("basePath", basePath);
+  const assetsPrefix = (import.meta.env.ASSETS_PREFIX as string) || "";
+  console.log("assetsPrefix", assetsPrefix);
 
   // Construct full URL
-  const baseUrl =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://hello-webflow-cloud.webflow.io";
+  const baseUrl = (() => {
+    if (typeof window !== "undefined") {
+      return window.location.origin;
+    }
+
+    if (assetsPrefix.startsWith("http")) {
+      return assetsPrefix.replace(/\/api\/.*$/, ""); // Remove any API path to get base URL
+    }
+
+    return "https://hello-webflow-cloud.webflow.io";
+  })();
 
   try {
     // If there's an avatar, upload it separately first
@@ -89,7 +102,7 @@ export async function updateProfile(
       uploadFormData.append("avatar", profileData.avatar);
 
       const uploadResponse = await fetch(
-        `${baseUrl}${basePath}/api/upload-avatar`,
+        `${baseUrl}${assetsPrefix}/api/upload-avatar`,
         {
           method: "POST",
           body: uploadFormData,
@@ -113,7 +126,7 @@ export async function updateProfile(
       formData.append("avatarUrl", avatarUrl);
     }
 
-    const response = await fetch(`${baseUrl}${basePath}/api/user/profile`, {
+    const response = await fetch(`${baseUrl}${assetsPrefix}/api/user/profile`, {
       method: "POST",
       body: formData,
     });
