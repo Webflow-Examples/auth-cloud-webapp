@@ -5,7 +5,5 @@ export const authClient = createAuthClient({
   baseURL:
     typeof window !== "undefined"
       ? `${window.location.origin}${import.meta.env.ASSETS_PREFIX}/api/auth`
-      : `https://hello-webflow-cloud.webflow.io${
-          import.meta.env.ASSETS_PREFIX
-        }/api/auth`,
+      : `${import.meta.env.ASSETS_PREFIX}/api/auth`,
 });
