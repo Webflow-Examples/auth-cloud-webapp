@@ -5,10 +5,13 @@ import crypto from "crypto";
 // Token validation will be done by decoding the JWT-like token
 
 export const POST: APIRoute = async ({ request, params, locals }) => {
-  // Get the origin URL from the BASE_URL environment variable
-  const baseUrl = import.meta.env.BASE_URL;
-  const originURL = new URL(baseUrl);
-  const corsOrigin = originURL.origin;
+  // Debug: log the BETTER_AUTH_URL to see what it actually is
+  const betterAuthUrl = locals.runtime.env.BETTERAUTH_URL;
+  console.log("BETTER_AUTH_URL:", betterAuthUrl);
+  console.log("Request origin:", request.headers.get("origin"));
+
+  // Set CORS origin to the main domain where the requests come from
+  const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
 
   try {
     const token = params.token;
@@ -213,11 +216,9 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   }
 };
 
-export const OPTIONS: APIRoute = async () => {
-  // Get the origin URL from the BASE_URL environment variable
-  const baseUrl = import.meta.env.BASE_URL;
-  const originURL = new URL(baseUrl);
-  const corsOrigin = originURL.origin;
+export const OPTIONS: APIRoute = async ({ locals }) => {
+  // Get the origin URL from the environment variable
+  const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
 
   return new Response(null, {
     status: 200,
