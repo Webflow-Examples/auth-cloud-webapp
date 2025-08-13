@@ -35,20 +35,23 @@ export async function fetchProfile(): Promise<ProfileData | null> {
 
   // Construct full URL
   const fullUrl = (() => {
-    if (typeof window !== "undefined") {
-      // In browser: if assetsPrefix is a full URL, use it directly
-      if (assetsPrefix.startsWith("http")) {
-        return `${assetsPrefix}/api/user/profile`;
-      }
-      // In browser: if assetsPrefix is just a path, add window.location.origin
-      return `${window.location.origin}${assetsPrefix}/api/user/profile`;
+    // In production, ASSETS_PREFIX is a full URL, so extract just the path
+    if (
+      import.meta.env.MODE === "production" &&
+      assetsPrefix.startsWith("http")
+    ) {
+      const url = new URL(assetsPrefix);
+      const path = url.pathname;
+
+      return typeof window !== "undefined"
+        ? `${window.location.origin}${path}/api/user/profile`
+        : `${import.meta.env.BETTERAUTH_URL}${path}/api/user/profile`;
     }
 
-    if (assetsPrefix.startsWith("http")) {
-      return `${assetsPrefix}/api/user/profile`;
-    }
-
-    return `https://hello-webflow-cloud.webflow.io${assetsPrefix}/api/user/profile`;
+    // In development, ASSETS_PREFIX is just a path
+    return typeof window !== "undefined"
+      ? `${window.location.origin}${assetsPrefix}/api/user/profile`
+      : `${import.meta.env.BETTERAUTH_URL}${assetsPrefix}/api/user/profile`;
   })();
 
   try {
@@ -87,20 +90,19 @@ export async function updateProfile(
 
   // Construct full URL
   const baseUrl = (() => {
-    if (typeof window !== "undefined") {
-      // In browser: if assetsPrefix is a full URL, extract the base URL
-      if (assetsPrefix.startsWith("http")) {
-        return assetsPrefix.replace(/\/api\/.*$/, ""); // Remove any API path to get base URL
-      }
-      // In browser: if assetsPrefix is just a path, use window.location.origin
-      return window.location.origin;
+    // In production, ASSETS_PREFIX is a full URL, so extract just the base URL
+    if (
+      import.meta.env.MODE === "production" &&
+      assetsPrefix.startsWith("http")
+    ) {
+      const url = new URL(assetsPrefix);
+      return `${url.protocol}//${url.host}`;
     }
 
-    if (assetsPrefix.startsWith("http")) {
-      return assetsPrefix.replace(/\/api\/.*$/, ""); // Remove any API path to get base URL
-    }
-
-    return "https://hello-webflow-cloud.webflow.io";
+    // In development, ASSETS_PREFIX is just a path
+    return typeof window !== "undefined"
+      ? window.location.origin
+      : import.meta.env.BETTERAUTH_URL;
   })();
 
   try {
