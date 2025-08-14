@@ -377,7 +377,17 @@ export default function FilesPage() {
                     </p>
 
                     <p className="text-xs text-gray-500 mb-3">
-                      Uploaded {new Date(file.uploadedAt).toLocaleDateString()}
+                      Uploaded{" "}
+                      {(() => {
+                        try {
+                          const date = new Date(file.uploadedAt);
+                          return isNaN(date.getTime())
+                            ? "Recently"
+                            : `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+                        } catch (e) {
+                          return "Recently";
+                        }
+                      })()}
                     </p>
 
                     <div className="flex gap-2">

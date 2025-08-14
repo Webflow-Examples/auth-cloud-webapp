@@ -183,10 +183,11 @@ export class FileService {
             contentType:
               metadata.httpMetadata?.contentType || "application/octet-stream",
             fileSize: obj.size,
-            uploadedAt:
-              metadata.customMetadata?.uploadedAt 
-                ? new Date(parseInt(metadata.customMetadata.uploadedAt)).toISOString()
-                : new Date().toISOString(),
+            uploadedAt: metadata.customMetadata?.uploadedAt
+              ? new Date(
+                  parseInt(metadata.customMetadata.uploadedAt)
+                ).toISOString()
+              : new Date().toISOString(),
             userId: metadata.customMetadata?.userId || userId,
           });
         }
