@@ -13,6 +13,9 @@ if (!session?.user) {
 }
 ---
 
+<!-- Import Uppy CSS -->
+<link href="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.css" rel="stylesheet">
+
 <Layout title="File Manager">
   <div class="min-h-screen bg-gray-50 py-12 px-4">
     <div class="max-w-6xl mx-auto">
@@ -30,63 +33,16 @@ if (!session?.user) {
         <!-- Upload Section -->
         <div class="mb-8">
           <h2 class="text-xl font-semibold mb-4">Upload New File</h2>
-          <div
-            id="uploadArea"
-            class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-colors bg-gray-50"
-          >
-            <input
-              id="fileInput"
-              type="file"
-              class="hidden"
-              accept="*/*"
-            />
+          <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 bg-gray-50">
+            <!-- Uppy Dashboard -->
+            <div id="uppy-dashboard"></div>
             
-            <div id="uploadPrompt">
-              <div class="text-4xl mb-4">📁</div>
-              <p class="text-lg text-gray-600 mb-2">
-                Drag and drop a file here, or
-                <button
-                  type="button"
-                  id="browseButton"
-                  class="text-blue-600 hover:text-blue-700 underline"
-                >
-                  browse files
-                </button>
-              </p>
-              <p class="text-sm text-gray-500">
-                Supports any file type up to 1GB
-              </p>
-            </div>
-
-            <div id="filePreview" class="hidden">
-              <div id="fileIcon" class="text-4xl mb-4"></div>
-              <p id="fileName" class="text-lg font-medium mb-2"></p>
-              <p id="fileInfo" class="text-sm text-gray-600 mb-4"></p>
-              
-              <!-- Upload Progress -->
-              <div id="uploadProgress" class="hidden mb-4">
-                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                  <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-                <p id="progressText" class="text-sm text-gray-600">Preparing upload...</p>
-              </div>
-              
-              <div class="flex gap-2 justify-center">
-                <button
-                  type="button"
-                  id="cancelButton"
-                  class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  id="uploadButton"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Upload File
-                </button>
-              </div>
+            <!-- Uppy Progress Bar -->
+            <div id="uppy-progress" class="mt-4"></div>
+            
+            <!-- Upload Status -->
+            <div id="uploadStatus" class="mt-4 text-center text-sm text-gray-600">
+              Supports any file type up to 5GB
             </div>
           </div>
         </div>
@@ -119,11 +75,66 @@ if (!session?.user) {
   </div>
 </Layout>
 
+<style>
+  /* Custom Uppy styling to match your design */
+  .uppy-Dashboard {
+    border: none !important;
+    border-radius: 0.5rem !important;
+    box-shadow: none !important;
+  }
+
+  .uppy-Dashboard-inner {
+    border: none !important;
+    border-radius: 0.5rem !important;
+  }
+
+  .uppy-Dashboard-dropzone {
+    border: 2px dashed #d1d5db !important;
+    border-radius: 0.5rem !important;
+    background-color: #f9fafb !important;
+  }
+
+  .uppy-Dashboard-dropzone.is-dragenter {
+    border-color: #3b82f6 !important;
+    background-color: #eff6ff !important;
+  }
+
+  .uppy-Dashboard-AddFiles {
+    background-color: transparent !important;
+    border: none !important;
+    color: #6b7280 !important;
+  }
+
+  .uppy-Dashboard-AddFiles:hover {
+    background-color: transparent !important;
+    color: #374151 !important;
+  }
+
+  .uppy-ProgressBar {
+    border-radius: 0.5rem !important;
+    background-color: #e5e7eb !important;
+  }
+
+  .uppy-ProgressBar-bar {
+    background-color: #3b82f6 !important;
+    border-radius: 0.5rem !important;
+  }
+
+  .uppy-Dashboard-Item {
+    border-radius: 0.5rem !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  .uppy-Dashboard-Item-preview {
+    border-radius: 0.5rem !important;
+  }
+</style>
+
 <script>
+  import { uppyUploader } from '../utils/uppy-upload';
+  import Dashboard from '@uppy/dashboard';
+  import ProgressBar from '@uppy/progress-bar';
   import {
-    uploadFile,
-    uploadFileWithProgress,
-    uploadFileMultipart,
     listFiles,
     deleteFile,
     getFileTypeCategory,
@@ -132,25 +143,29 @@ if (!session?.user) {
   } from '../utils/file-api.js';
 
   // DOM elements
-  const statusMessage = document.getElementById('statusMessage');
-  const uploadArea = document.getElementById('uploadArea');
-  const fileInput = document.getElementById('fileInput');
-  const browseButton = document.getElementById('browseButton');
-  const uploadPrompt = document.getElementById('uploadPrompt');
-  const filePreview = document.getElementById('filePreview');
-  const fileIcon = document.getElementById('fileIcon');
-  const fileName = document.getElementById('fileName');
-  const fileInfo = document.getElementById('fileInfo');
-  const cancelButton = document.getElementById('cancelButton');
-  const uploadButton = document.getElementById('uploadButton');
-  const filesList = document.getElementById('filesList');
-  const uploadProgress = document.getElementById('uploadProgress');
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressText');
+  const statusMessage = document.getElementById('statusMessage') as HTMLElement;
+  const filesList = document.getElementById('filesList') as HTMLElement;
+  const uploadStatus = document.getElementById('uploadStatus') as HTMLElement;
 
-  let selectedFile = null;
-  let dragActive = false;
-  let copiedUrl = null;
+  // Initialize Uppy
+  const uppy = uppyUploader.getUppy();
+
+  // Add Dashboard plugin
+  uppy.use(Dashboard, {
+    inline: true,
+    target: '#uppy-dashboard',
+    height: 300,
+    showProgressDetails: true,
+    proudlyDisplayPoweredByUppy: false,
+    theme: 'light',
+    width: '100%',
+  });
+
+  // Add Progress Bar plugin
+  uppy.use(ProgressBar, {
+    target: '#uppy-progress',
+    hideAfterFinish: false,
+  });
 
   // Initialize
   loadFiles();
@@ -158,19 +173,7 @@ if (!session?.user) {
   // Get base URL for navigation
   const baseUrl = import.meta.env.BASE_URL;
 
-  // Event listeners
-  browseButton?.addEventListener('click', () => fileInput?.click());
-  fileInput?.addEventListener('change', handleFileSelect);
-  cancelButton?.addEventListener('click', clearFileSelection);
-  uploadButton?.addEventListener('click', handleUpload);
-
-  // Drag and drop
-  uploadArea?.addEventListener('dragenter', handleDrag);
-  uploadArea?.addEventListener('dragleave', handleDrag);
-  uploadArea?.addEventListener('dragover', handleDrag);
-  uploadArea?.addEventListener('drop', handleDrop);
-
-  function showStatus(text, type) {
+  function showStatus(text: string, type: 'success' | 'error' | 'info') {
     if (!statusMessage) return;
     
     statusMessage.textContent = text;
@@ -203,7 +206,7 @@ if (!session?.user) {
     }
   }
 
-  function renderFiles(files) {
+  function renderFiles(files: any[]) {
     if (!filesList) return;
 
     if (files.length === 0) {
@@ -282,132 +285,42 @@ if (!session?.user) {
     `;
   }
 
-  function handleFileSelect(event) {
-    const file = event.target.files?.[0];
-    if (file) {
-      selectedFile = file;
-      showFilePreview(file);
-    }
-  }
-
-  function handleDrag(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      dragActive = true;
-      uploadArea.classList.add('border-blue-500', 'bg-blue-50');
-      uploadArea.classList.remove('border-gray-300', 'bg-gray-50');
-    } else if (e.type === 'dragleave') {
-      dragActive = false;
-      uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
-      uploadArea.classList.add('border-gray-300', 'bg-gray-50');
-    }
-  }
-
-  function handleDrop(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    dragActive = false;
-    uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
-    uploadArea.classList.add('border-gray-300', 'bg-gray-50');
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      selectedFile = e.dataTransfer.files[0];
-      showFilePreview(selectedFile);
-    }
-  }
-
-  function showFilePreview(file) {
-    if (!uploadPrompt || !filePreview || !fileIcon || !fileName || !fileInfo) return;
-
-    uploadPrompt.classList.add('hidden');
-    filePreview.classList.remove('hidden');
-    
-    fileIcon.textContent = getFileIcon(file.type);
-    fileName.textContent = file.name;
-    fileInfo.textContent = `${formatFileSize(file.size)} • ${getFileTypeCategory(file.type)}`;
-  }
-
-  function clearFileSelection() {
-    selectedFile = null;
-    if (fileInput) fileInput.value = '';
-    if (uploadPrompt) uploadPrompt.classList.remove('hidden');
-    if (filePreview) filePreview.classList.add('hidden');
-    hideProgress();
-  }
-
-  async function handleUpload() {
-    if (!selectedFile || !uploadButton) return;
-
-    // Show progress UI
-    uploadProgress.classList.remove('hidden');
-    uploadButton.disabled = true;
-    uploadButton.textContent = 'Uploading...';
-    showStatus('Uploading file...', 'info');
-
-    try {
-      // Choose upload method based on file size
-      let response;
-      
-      if (selectedFile.size > 100 * 1024 * 1024) { // 100MB threshold
-        console.log(`Using multipart upload for large file: ${selectedFile.size} bytes`);
-        response = await uploadFileMultipart(selectedFile, (progress) => {
-          // Update progress bar and text for multipart upload
-          const totalParts = Math.ceil(selectedFile.size / (5 * 1024 * 1024));
-          const currentPart = Math.ceil((progress.percent / 100) * totalParts);
-          updateProgress(progress.percent, `Uploading part ${currentPart}/${totalParts}... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)}`);
-        });
-      } else {
-        console.log(`Using streaming upload for smaller file: ${selectedFile.size} bytes`);
-        response = await uploadFileWithProgress(selectedFile, (progress) => {
-          // Update progress bar and text
-          updateProgress(progress.percent, `Uploading... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)} (${Math.round(progress.speed / 1024)} KB/s)`);
-          
-          // Show ETA if available
-          if (progress.eta > 0 && progress.eta < Infinity) {
-            const etaText = progress.eta > 60 
-              ? `${Math.round(progress.eta / 60)}m ${Math.round(progress.eta % 60)}s remaining`
-              : `${Math.round(progress.eta)}s remaining`;
-            if (progressText) {
-              progressText.textContent = `Uploading... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)} (${Math.round(progress.speed / 1024)} KB/s) - ${etaText}`;
-            }
-          }
-        });
-      }
-      
-      if (response.success) {
-        updateProgress(100, 'Upload complete!');
+  // Uppy event handlers
+  uppy.on('upload-success', (file, response) => {
+    const data = response.body as any;
+    if (data.success) {
+      showStatus('File uploaded successfully!', 'success');
+      loadFiles(); // Refresh file list
+      if (uploadStatus) {
+        uploadStatus.textContent = 'File uploaded successfully!';
         setTimeout(() => {
-          showStatus('File uploaded successfully!', 'success');
-          clearFileSelection();
-          loadFiles();
-        }, 500);
-      } else {
-        showStatus(response.error || 'Failed to upload file', 'error');
-        hideProgress();
+          uploadStatus.textContent = 'Supports any file type up to 5GB';
+        }, 3000);
       }
-    } catch (error) {
-      showStatus('Failed to upload file', 'error');
-      hideProgress();
-    } finally {
-      uploadButton.disabled = false;
-      uploadButton.textContent = 'Upload File';
+    } else {
+      showStatus(data.error || 'Upload failed', 'error');
     }
-  }
+  });
 
-  function updateProgress(percent, text) {
-    if (progressBar && progressText) {
-      progressBar.style.width = percent + '%';
-      progressText.textContent = text;
-    }
-  }
+  uppy.on('upload-error', (file, error) => {
+    showStatus(`Upload failed: ${error.message}`, 'error');
+  });
 
-  function hideProgress() {
-    if (uploadProgress) {
-      uploadProgress.classList.add('hidden');
-      updateProgress(0, 'Preparing upload...');
+  uppy.on('upload-progress', (file, progress) => {
+    if (uploadStatus) {
+      const percent = progress.bytesTotal ? Math.round((progress.bytesUploaded / progress.bytesTotal) * 100) : 0;
+      uploadStatus.textContent = `Uploading... ${percent}%`;
     }
-  }
+  });
+
+  uppy.on('complete', (result) => {
+    if (uploadStatus) {
+      uploadStatus.textContent = 'Upload complete!';
+      setTimeout(() => {
+        uploadStatus.textContent = 'Supports any file type up to 5GB';
+      }, 3000);
+    }
+  });
 
   async function handleDelete(key: string, filename: string) {
     if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
@@ -428,7 +341,6 @@ if (!session?.user) {
   async function copyToClipboard(url: string) {
     try {
       await navigator.clipboard.writeText(url);
-      copiedUrl = url;
       showStatus('URL copied to clipboard!', 'success');
       
       const button = document.getElementById(`copy-${url.split('/').pop()}`);

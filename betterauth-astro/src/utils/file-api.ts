@@ -52,6 +52,19 @@ export interface MultipartPartResponse {
   error?: string;
 }
 
+interface MultipartAllUrlsResponse {
+  success: boolean;
+  partUrls?: Array<{ partNumber: number; url: string }>;
+  error?: string;
+}
+
+interface MultipartBatchUrlsResponse {
+  success: boolean;
+  partUrls?: Array<{ partNumber: number; url: string }>;
+  hasMore?: boolean;
+  error?: string;
+}
+
 export interface MultipartUploadPartResponse {
   success: boolean;
   partNumber?: number;
@@ -307,23 +320,37 @@ export async function uploadFileMultipart(
 
     const { uploadId, key } = initData;
 
-    // Step 2: Split file into parts (5MB each)
-    const partSize = 5 * 1024 * 1024; // 5MB
+    // Step 2: Split file into parts (10MB each for better performance)
+    const partSize = 10 * 1024 * 1024; // 10MB
     const totalParts = Math.ceil(file.size / partSize);
-    const parts: Array<{ partNumber: number; etag: string; size: number }> = [];
 
     console.log(
       `Starting multipart upload: ${totalParts} parts of ${partSize} bytes each`
     );
 
-    for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
-      const start = (partNumber - 1) * partSize;
-      const end = Math.min(start + partSize, file.size);
-      const chunk = file.slice(start, end);
+    // Upload parts in batches to avoid timeout
+    const batchSize = 15; // Generate 15 URLs per request
+    const concurrencyLimit = 3; // Upload 3 parts at a time
+    const uploadPromises: Array<
+      Promise<{ partNumber: number; etag: string; size: number }>
+    > = [];
+    const partsMap = new Map<
+      number,
+      { partNumber: number; etag: string; size: number }
+    >();
 
-      // Get upload URL for this part
-      const partUrlResponse = await fetch(
-        `${baseUrl}/api/files/multipart/get-part-url`,
+    for (
+      let batchStart = 1;
+      batchStart <= totalParts;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize - 1, totalParts);
+
+      console.log(`Getting URLs for parts ${batchStart}-${batchEnd}`);
+
+      // Get URLs for this batch
+      const batchUrlsResponse = await fetch(
+        `${baseUrl}/api/files/multipart/get-part-urls-batch`,
         {
           method: "POST",
           headers: {
@@ -333,62 +360,115 @@ export async function uploadFileMultipart(
           body: JSON.stringify({
             key,
             uploadId,
-            partNumber,
+            startPartNumber: batchStart,
+            endPartNumber: batchEnd,
           }),
         }
       );
 
-      if (!partUrlResponse.ok) {
-        throw new Error(`Failed to get part URL for part ${partNumber}`);
-      }
-
-      const partUrlData =
-        (await partUrlResponse.json()) as MultipartPartResponse;
-      if (!partUrlData.success || !partUrlData.presignedUrl) {
-        throw new Error(`Failed to get upload URL for part ${partNumber}`);
-      }
-
-      // Upload this part
-      const uploadResponse = await fetch(partUrlData.presignedUrl, {
-        method: "POST",
-        body: chunk,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(`Failed to upload part ${partNumber}`);
-      }
-
-      const uploadData =
-        (await uploadResponse.json()) as MultipartUploadPartResponse;
-      if (!uploadData.success) {
+      if (!batchUrlsResponse.ok) {
         throw new Error(
-          `Failed to upload part ${partNumber}: ${uploadData.error}`
+          `Failed to get batch URLs: ${batchUrlsResponse.status}`
         );
       }
 
-      parts.push({
-        partNumber: uploadData.partNumber!,
-        etag: uploadData.etag!,
-        size: uploadData.size!,
-      });
-
-      // Update progress
-      if (onProgress) {
-        const loaded = partNumber * partSize;
-        const percent = (loaded / file.size) * 100;
-        onProgress({
-          loaded: Math.min(loaded, file.size),
-          total: file.size,
-          percent: Math.min(percent, 100),
-          speed: 0, // Can't calculate speed for multipart
-          eta: 0, // Can't calculate ETA for multipart
-        });
+      const batchUrlsData =
+        (await batchUrlsResponse.json()) as MultipartBatchUrlsResponse;
+      if (!batchUrlsData.success || !batchUrlsData.partUrls) {
+        throw new Error("Failed to get batch URLs");
       }
 
-      console.log(`Uploaded part ${partNumber}/${totalParts}`);
+      // Upload parts in this batch
+      for (const partInfo of batchUrlsData.partUrls) {
+        const partNumber = partInfo.partNumber;
+        const start = (partNumber - 1) * partSize;
+        const end = Math.min(start + partSize, file.size);
+        const chunk = file.slice(start, end);
+
+        // Create upload promise
+        const uploadPromise = (async () => {
+          const uploadResponse = await fetch(partInfo.url, {
+            method: "POST",
+            body: chunk,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error(`Failed to upload part ${partNumber}`);
+          }
+
+          const uploadData =
+            (await uploadResponse.json()) as MultipartUploadPartResponse;
+          if (!uploadData.success) {
+            throw new Error(
+              `Failed to upload part ${partNumber}: ${uploadData.error}`
+            );
+          }
+
+          console.log(`Uploaded part ${partNumber}/${totalParts}`);
+          return {
+            partNumber: uploadData.partNumber!,
+            etag: uploadData.etag!,
+            size: uploadData.size!,
+          };
+        })();
+
+        uploadPromises.push(uploadPromise);
+
+        // Limit concurrency
+        if (uploadPromises.length >= concurrencyLimit) {
+          const completedPart = await Promise.race(uploadPromises);
+          partsMap.set(completedPart.partNumber, completedPart);
+          uploadPromises.splice(uploadPromises.indexOf(uploadPromise), 1);
+
+          // Update progress
+          if (onProgress) {
+            const loaded = partsMap.size * partSize;
+            const percent = (loaded / file.size) * 100;
+            onProgress({
+              loaded: Math.min(loaded, file.size),
+              total: file.size,
+              percent: Math.min(percent, 100),
+              speed: 0,
+              eta: 0,
+            });
+          }
+        }
+      }
     }
 
+    // Wait for remaining uploads
+    const remainingParts = await Promise.all(uploadPromises);
+    remainingParts.forEach((part) => partsMap.set(part.partNumber, part));
+
+    // Final progress update for all parts uploaded
+    if (onProgress) {
+      const totalUploaded = partsMap.size * partSize;
+      const percent = (totalUploaded / file.size) * 100;
+      onProgress({
+        loaded: Math.min(totalUploaded, file.size),
+        total: file.size,
+        percent: Math.min(percent, 100),
+        speed: 0,
+        eta: 0,
+      });
+    }
+
+    // Convert map to array and sort by part number
+    const parts = Array.from(partsMap.values()).sort(
+      (a, b) => a.partNumber - b.partNumber
+    );
+
     // Step 3: Complete multipart upload
+    if (onProgress) {
+      onProgress({
+        loaded: file.size,
+        total: file.size,
+        percent: 95, // 95% - parts uploaded, now completing
+        speed: 0,
+        eta: 0,
+      });
+    }
+
     const completeResponse = await fetch(
       `${baseUrl}/api/files/multipart/complete`,
       {
@@ -419,6 +499,17 @@ export async function uploadFileMultipart(
       throw new Error(
         completeData.error || "Failed to complete multipart upload"
       );
+    }
+
+    // Final progress update - upload complete
+    if (onProgress) {
+      onProgress({
+        loaded: file.size,
+        total: file.size,
+        percent: 100,
+        speed: 0,
+        eta: 0,
+      });
     }
 
     return {

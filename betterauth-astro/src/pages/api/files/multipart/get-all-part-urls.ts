@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { auth } from "../../../utils/auth";
-import { createFileService } from "../../../utils/file-service";
+import { auth } from "../../../../utils/auth";
+import crypto from "crypto";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
@@ -28,15 +28,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Parse multipart form data
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const body = (await request.json()) as {
+      key: string;
+      uploadId: string;
+      totalParts: number;
+    };
+    const { key, uploadId, totalParts } = body;
 
-    if (!file || file.size === 0) {
+    if (!key || !uploadId || !totalParts) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "No file provided",
+          error: "Missing required fields: key, uploadId, totalParts",
         }),
         {
           status: 400,
@@ -51,75 +54,42 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Validate file size (5GB limit)
-    const maxSize = 5 * 1024 * 1024 * 1024; // 5GB
-    if (file.size > maxSize) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "File size must be less than 5GB",
-        }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": corsOrigin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Credentials": "true",
-          },
-        }
-      );
+    // Generate tokens for all parts at once
+    const partUrls: Array<{ partNumber: number; url: string }> = [];
+    const baseUrl = import.meta.env.ASSETS_PREFIX as string;
+
+    for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+      const tokenData = {
+        userId: session.user.id,
+        key,
+        uploadId,
+        partNumber,
+        expires: Date.now() + 10 * 60 * 1000, // 10 minutes
+      };
+
+      const signature = crypto
+        .createHmac("sha256", locals.runtime.env.BETTER_AUTH_SECRET)
+        .update(
+          `${tokenData.userId}:${tokenData.key}:${tokenData.uploadId}:${tokenData.partNumber}:${tokenData.expires}`
+        )
+        .digest("hex");
+
+      const token = Buffer.from(
+        JSON.stringify({ ...tokenData, signature })
+      ).toString("base64url");
+
+      const presignedUrl = `${baseUrl}/api/files/multipart/upload-part?token=${token}`;
+
+      partUrls.push({
+        partNumber,
+        url: presignedUrl,
+      });
     }
-
-    console.log(`Uploading file: ${file.name}, size: ${file.size} bytes`);
-
-    // Create file service
-    const fileService = createFileService(
-      locals.runtime.env.USER_AVATARS,
-      new URL(request.url).origin
-    );
-
-    // Convert file to ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
-
-    // Upload file
-    const uploadResult = await fileService.uploadFile(
-      session.user.id,
-      arrayBuffer,
-      file.name,
-      file.type
-    );
-
-    if (!uploadResult.success) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: uploadResult.error || "Upload failed",
-        }),
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": corsOrigin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Credentials": "true",
-          },
-        }
-      );
-    }
-
-    console.log(`File uploaded successfully: ${uploadResult.url}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        url: uploadResult.url,
-        key: uploadResult.key,
-        filename: file.name,
-        fileSize: file.size,
-        contentType: file.type,
+        partUrls,
       }),
       {
         status: 200,
@@ -133,7 +103,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     );
   } catch (error) {
-    console.error("Error uploading file:", error);
+    console.error("Error generating part URLs:", error);
     return new Response(
       JSON.stringify({
         success: false,
