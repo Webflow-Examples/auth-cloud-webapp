@@ -1,0 +1,429 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { auth } from '../utils/auth';
+
+// Check authentication
+const authInstance = await auth(Astro.locals.runtime.env);
+const session = await authInstance.api.getSession({
+  headers: Astro.request.headers,
+});
+
+if (!session?.user) {
+  return Astro.redirect('/login');
+}
+---
+
+<Layout title="File Manager">
+  <div class="min-h-screen bg-gray-50 py-12 px-4">
+    <div class="max-w-6xl mx-auto">
+      <div class="bg-white rounded-lg shadow-md p-8">
+        <h1 class="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-wf-visual-sans-semibold">
+          File Manager
+        </h1>
+        <p class="text-center text-gray-600 mb-8">
+          Upload and manage your files for use in Webflow sites
+        </p>
+
+        <!-- Status Message -->
+        <div id="statusMessage" class="hidden p-4 mb-6 rounded-md"></div>
+
+        <!-- Upload Section -->
+        <div class="mb-8">
+          <h2 class="text-xl font-semibold mb-4">Upload New File</h2>
+          <div
+            id="uploadArea"
+            class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-colors bg-gray-50"
+          >
+            <input
+              id="fileInput"
+              type="file"
+              class="hidden"
+              accept="*/*"
+            />
+            
+            <div id="uploadPrompt">
+              <div class="text-4xl mb-4">📁</div>
+              <p class="text-lg text-gray-600 mb-2">
+                Drag and drop a file here, or
+                <button
+                  type="button"
+                  id="browseButton"
+                  class="text-blue-600 hover:text-blue-700 underline"
+                >
+                  browse files
+                </button>
+              </p>
+              <p class="text-sm text-gray-500">
+                Supports any file type up to 1GB
+              </p>
+            </div>
+
+            <div id="filePreview" class="hidden">
+              <div id="fileIcon" class="text-4xl mb-4"></div>
+              <p id="fileName" class="text-lg font-medium mb-2"></p>
+              <p id="fileInfo" class="text-sm text-gray-600 mb-4"></p>
+              
+              <!-- Upload Progress -->
+              <div id="uploadProgress" class="hidden mb-4">
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                  <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p id="progressText" class="text-sm text-gray-600">Preparing upload...</p>
+              </div>
+              
+              <div class="flex gap-2 justify-center">
+                <button
+                  type="button"
+                  id="cancelButton"
+                  class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  id="uploadButton"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Upload File
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Files List -->
+        <div>
+          <h2 class="text-xl font-semibold mb-4">Your Files</h2>
+          <div id="filesList">
+            <div class="text-center py-12 text-gray-500">
+              <div class="text-4xl mb-4">📂</div>
+              <p>Loading files...</p>
+              <div class="mt-4">
+                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Back Button -->
+        <div class="mt-8 text-center">
+          <a
+            href={import.meta.env.BASE_URL + "/"}
+            class="bg-gray-600 text-white px-6 py-3 rounded-md font-medium hover:bg-gray-700 transition-colors inline-block"
+          >
+            Back to Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import {
+    uploadFile,
+    listFiles,
+    deleteFile,
+    getFileTypeCategory,
+    formatFileSize,
+    getFileIcon,
+  } from '../utils/file-api.js';
+
+  // DOM elements
+  const statusMessage = document.getElementById('statusMessage');
+  const uploadArea = document.getElementById('uploadArea');
+  const fileInput = document.getElementById('fileInput');
+  const browseButton = document.getElementById('browseButton');
+  const uploadPrompt = document.getElementById('uploadPrompt');
+  const filePreview = document.getElementById('filePreview');
+  const fileIcon = document.getElementById('fileIcon');
+  const fileName = document.getElementById('fileName');
+  const fileInfo = document.getElementById('fileInfo');
+  const cancelButton = document.getElementById('cancelButton');
+  const uploadButton = document.getElementById('uploadButton');
+  const filesList = document.getElementById('filesList');
+  const uploadProgress = document.getElementById('uploadProgress');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+
+  let selectedFile = null;
+  let dragActive = false;
+  let copiedUrl = null;
+
+  // Initialize
+  loadFiles();
+
+  // Get base URL for navigation
+  const baseUrl = import.meta.env.BASE_URL;
+
+  // Event listeners
+  browseButton?.addEventListener('click', () => fileInput?.click());
+  fileInput?.addEventListener('change', handleFileSelect);
+  cancelButton?.addEventListener('click', clearFileSelection);
+  uploadButton?.addEventListener('click', handleUpload);
+
+  // Drag and drop
+  uploadArea?.addEventListener('dragenter', handleDrag);
+  uploadArea?.addEventListener('dragleave', handleDrag);
+  uploadArea?.addEventListener('dragover', handleDrag);
+  uploadArea?.addEventListener('drop', handleDrop);
+
+  function showStatus(text, type) {
+    if (!statusMessage) return;
+    
+    statusMessage.textContent = text;
+    statusMessage.className = `p-4 mb-6 rounded-md ${
+      type === 'success'
+        ? 'bg-green-100 text-green-700 border border-green-200'
+        : type === 'error'
+        ? 'bg-red-100 text-red-700 border border-red-200'
+        : 'bg-blue-100 text-blue-700 border border-blue-200'
+    }`;
+    statusMessage.classList.remove('hidden');
+    
+    setTimeout(() => {
+      statusMessage.classList.add('hidden');
+    }, 5000);
+  }
+
+  async function loadFiles() {
+    try {
+      const response = await listFiles();
+      if (response.success && response.files) {
+        renderFiles(response.files);
+      } else {
+        showStatus(response.error || 'Failed to load files', 'error');
+        renderEmptyState();
+      }
+    } catch (error) {
+      showStatus('Failed to load files', 'error');
+      renderEmptyState();
+    }
+  }
+
+  function renderFiles(files) {
+    if (!filesList) return;
+
+    if (files.length === 0) {
+      renderEmptyState();
+      return;
+    }
+
+    const filesHtml = files.map(file => `
+      <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+        <div class="flex items-start justify-between mb-3">
+          <div class="text-2xl">${getFileIcon(file.contentType)}</div>
+          <button
+            onclick="handleDelete('${file.key}', '${file.filename}')"
+            class="text-red-500 hover:text-red-700 text-sm"
+            id="delete-${file.key}"
+          >
+            Delete
+          </button>
+        </div>
+        
+        <h3 class="font-medium text-gray-900 mb-1 truncate" title="${file.filename}">
+          ${file.filename}
+        </h3>
+        
+        <p class="text-sm text-gray-600 mb-2">
+          ${formatFileSize(file.fileSize)} • ${getFileTypeCategory(file.contentType)}
+        </p>
+        
+        <p class="text-xs text-gray-500 mb-3">
+          Uploaded ${(() => {
+            try {
+              const date = new Date(file.uploadedAt);
+              return isNaN(date.getTime()) 
+                ? 'Recently' 
+                : `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+            } catch (e) {
+              return 'Recently';
+            }
+          })()}
+        </p>
+        
+        <div class="flex gap-2">
+          <button
+            onclick="openFile('${file.url}')"
+            class="flex-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Open
+          </button>
+          <button
+            onclick="copyToClipboard('${file.url}')"
+            class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            id="copy-${file.key}"
+          >
+            Copy URL
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    filesList.innerHTML = `
+      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        ${filesHtml}
+      </div>
+    `;
+  }
+
+  function renderEmptyState() {
+    if (!filesList) return;
+    
+    filesList.innerHTML = `
+      <div class="text-center py-12 text-gray-500">
+        <div class="text-4xl mb-4">📂</div>
+        <p>No files uploaded yet</p>
+        <p class="text-sm">Upload your first file to get started</p>
+      </div>
+    `;
+  }
+
+  function handleFileSelect(event) {
+    const file = event.target.files?.[0];
+    if (file) {
+      selectedFile = file;
+      showFilePreview(file);
+    }
+  }
+
+  function handleDrag(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      dragActive = true;
+      uploadArea.classList.add('border-blue-500', 'bg-blue-50');
+      uploadArea.classList.remove('border-gray-300', 'bg-gray-50');
+    } else if (e.type === 'dragleave') {
+      dragActive = false;
+      uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
+      uploadArea.classList.add('border-gray-300', 'bg-gray-50');
+    }
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragActive = false;
+    uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
+    uploadArea.classList.add('border-gray-300', 'bg-gray-50');
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      selectedFile = e.dataTransfer.files[0];
+      showFilePreview(selectedFile);
+    }
+  }
+
+  function showFilePreview(file) {
+    if (!uploadPrompt || !filePreview || !fileIcon || !fileName || !fileInfo) return;
+
+    uploadPrompt.classList.add('hidden');
+    filePreview.classList.remove('hidden');
+    
+    fileIcon.textContent = getFileIcon(file.type);
+    fileName.textContent = file.name;
+    fileInfo.textContent = `${formatFileSize(file.size)} • ${getFileTypeCategory(file.type)}`;
+  }
+
+  function clearFileSelection() {
+    selectedFile = null;
+    if (fileInput) fileInput.value = '';
+    if (uploadPrompt) uploadPrompt.classList.remove('hidden');
+    if (filePreview) filePreview.classList.add('hidden');
+    hideProgress();
+  }
+
+  async function handleUpload() {
+    if (!selectedFile || !uploadButton) return;
+
+    // Show progress UI
+    uploadProgress.classList.remove('hidden');
+    uploadButton.disabled = true;
+    uploadButton.textContent = 'Uploading...';
+    showStatus('Uploading file...', 'info');
+
+    try {
+      // Step 1: Generate upload URL
+      updateProgress(10, 'Generating upload URL...');
+      const response = await uploadFile(selectedFile);
+      
+      if (response.success) {
+        updateProgress(100, 'Upload complete!');
+        setTimeout(() => {
+          showStatus('File uploaded successfully!', 'success');
+          clearFileSelection();
+          loadFiles();
+        }, 500);
+      } else {
+        showStatus(response.error || 'Failed to upload file', 'error');
+        hideProgress();
+      }
+    } catch (error) {
+      showStatus('Failed to upload file', 'error');
+      hideProgress();
+    } finally {
+      uploadButton.disabled = false;
+      uploadButton.textContent = 'Upload File';
+    }
+  }
+
+  function updateProgress(percent, text) {
+    if (progressBar && progressText) {
+      progressBar.style.width = percent + '%';
+      progressText.textContent = text;
+    }
+  }
+
+  function hideProgress() {
+    if (uploadProgress) {
+      uploadProgress.classList.add('hidden');
+      updateProgress(0, 'Preparing upload...');
+    }
+  }
+
+  async function handleDelete(key: string, filename: string) {
+    if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
+
+    try {
+      const response = await deleteFile(key);
+      if (response.success) {
+        showStatus('File deleted successfully!', 'success');
+        await loadFiles();
+      } else {
+        showStatus(response.error || 'Failed to delete file', 'error');
+      }
+    } catch (error) {
+      showStatus('Failed to delete file', 'error');
+    }
+  }
+
+  async function copyToClipboard(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      copiedUrl = url;
+      showStatus('URL copied to clipboard!', 'success');
+      
+      const button = document.getElementById(`copy-${url.split('/').pop()}`);
+      if (button) {
+        button.textContent = 'Copied!';
+        button.className = 'px-3 py-1 text-sm bg-green-600 text-white rounded';
+        setTimeout(() => {
+          button.textContent = 'Copy URL';
+          button.className = 'px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300';
+        }, 2000);
+      }
+    } catch (error) {
+      showStatus('Failed to copy URL', 'error');
+    }
+  }
+
+  function openFile(url: string) {
+    window.open(url, '_blank');
+  }
+
+  // Make functions globally available for onclick handlers
+  (window as any).handleDelete = handleDelete;
+  (window as any).copyToClipboard = copyToClipboard;
+  (window as any).openFile = openFile;
+</script>

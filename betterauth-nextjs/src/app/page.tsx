@@ -5,6 +5,7 @@ import { Section, Block, Link } from "@/devlink/_Builtin";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import os from "os";
+import config from "../../next.config";
 
 export default function Home() {
   const { data: session, isPending } = useSession();
@@ -82,7 +83,7 @@ export default function Home() {
             <Link
               button={true}
               options={{
-                href: "/next/profile",
+                href: `${config.assetPrefix}/profile`,
               }}
               className="button-primary"
               style={{
@@ -103,13 +104,34 @@ export default function Home() {
             <Link
               button={true}
               options={{
+                href: `${config.assetPrefix}/files`,
+              }}
+              className="button-primary"
+              style={{
+                background: "#007bff",
+                color: "white",
+                border: "none",
+                padding: "0.75rem 1.5rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              File Manager
+            </Link>
+            <Link
+              button={true}
+              options={{
                 href: "#",
               }}
               onClick={async () => {
                 await signOut({
                   fetchOptions: {
                     onSuccess: () => {
-                      router.push("/login");
+                      router.push(`${config.assetPrefix}/login`);
                     },
                   },
                 });
