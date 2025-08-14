@@ -250,10 +250,17 @@ export default function ProfilePage() {
           <div className="flex gap-4 justify-center">
             <button
               type="button"
-              onClick={() => router.push("/")}
+              onClick={() => router.push(`${config.assetPrefix}/`)}
               className="bg-gray-600 text-white px-6 py-3 rounded-md font-medium hover:bg-gray-700 transition-colors"
             >
               Back to Home
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(`${config.assetPrefix}/files`)}
+              className="bg-purple-600 text-white px-6 py-3 rounded-md font-medium hover:bg-purple-700 transition-colors"
+            >
+              File Manager
             </button>
             <button
               type="submit"
