@@ -42,7 +42,7 @@ if (!session?.user) {
             
             <!-- Upload Status -->
             <div id="uploadStatus" class="mt-4 text-center text-sm text-gray-600">
-              Supports any file type up to 5GB
+              Supports any file type up to 5GB with automatic multipart uploads
             </div>
           </div>
         </div>
@@ -131,7 +131,7 @@ if (!session?.user) {
 </style>
 
 <script>
-  import { uppyUploader } from '../utils/uppy-upload';
+  import { uppyR2S3Uploader } from '../utils/uppy-r2-s3';
   import Dashboard from '@uppy/dashboard';
   import ProgressBar from '@uppy/progress-bar';
   import {
@@ -147,8 +147,8 @@ if (!session?.user) {
   const filesList = document.getElementById('filesList') as HTMLElement;
   const uploadStatus = document.getElementById('uploadStatus') as HTMLElement;
 
-  // Initialize Uppy
-  const uppy = uppyUploader.getUppy();
+  // Initialize Uppy with R2 S3 support
+  const uppy = uppyR2S3Uploader.getUppy();
 
   // Add Dashboard plugin
   uppy.use(Dashboard, {
@@ -285,39 +285,38 @@ if (!session?.user) {
     `;
   }
 
-  // Uppy event handlers
-  uppy.on('upload-success', (file, response) => {
-    const data = response.body as any;
-    if (data.success) {
+  // Uppy event handlers with R2 S3 support
+  uppy.on('upload-success', (file: any, response: any) => {
+    if (file) {
       showStatus('File uploaded successfully!', 'success');
       loadFiles(); // Refresh file list
       if (uploadStatus) {
         uploadStatus.textContent = 'File uploaded successfully!';
         setTimeout(() => {
-          uploadStatus.textContent = 'Supports any file type up to 5GB';
+          uploadStatus.textContent = 'Supports any file type up to 5GB with direct R2 uploads';
         }, 3000);
       }
     } else {
-      showStatus(data.error || 'Upload failed', 'error');
+      showStatus('Upload failed', 'error');
     }
   });
 
-  uppy.on('upload-error', (file, error) => {
+  uppy.on('upload-error', (file: any, error: any) => {
     showStatus(`Upload failed: ${error.message}`, 'error');
   });
 
-  uppy.on('upload-progress', (file, progress) => {
+  uppy.on('upload-progress', (file: any, progress: any) => {
     if (uploadStatus) {
       const percent = progress.bytesTotal ? Math.round((progress.bytesUploaded / progress.bytesTotal) * 100) : 0;
       uploadStatus.textContent = `Uploading... ${percent}%`;
     }
   });
 
-  uppy.on('complete', (result) => {
+  uppy.on('complete', (result: any) => {
     if (uploadStatus) {
       uploadStatus.textContent = 'Upload complete!';
       setTimeout(() => {
-        uploadStatus.textContent = 'Supports any file type up to 5GB';
+        uploadStatus.textContent = 'Supports any file type up to 5GB with direct R2 uploads';
       }, 3000);
     }
   });

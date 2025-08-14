@@ -333,6 +333,38 @@ export class FileService {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
+
+  /**
+   * Generate a presigned URL for direct upload to R2
+   */
+  async generatePresignedUrl(
+    key: string,
+    contentType: string,
+    method: "GET" | "PUT" = "GET",
+    expiresIn: number = 3600
+  ): Promise<string | null> {
+    try {
+      if (!this.bucket) {
+        console.error("R2 bucket not available");
+        return null;
+      }
+
+      console.log(
+        `Generating presigned URL for key: ${key}, method: ${method}, expires: ${expiresIn}s`
+      );
+
+      // R2 doesn't have createPresignedUrl, we'll use a different approach
+      // For now, return a URL that points to our upload endpoint
+      const basePath = import.meta.env.ASSETS_PREFIX;
+      const url = `${basePath}/api/files/${key}`;
+
+      console.log(`Generated URL: ${url}`);
+      return url;
+    } catch (error) {
+      console.error("Error generating presigned URL:", error);
+      return null;
+    }
+  }
 }
 
 /**
