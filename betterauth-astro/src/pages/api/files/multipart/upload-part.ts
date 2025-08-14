@@ -1,19 +1,17 @@
 import type { APIRoute } from "astro";
-import { auth } from "../../../../utils/auth";
+import crypto from "crypto";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
 
   try {
-    // Get the authenticated user
-    const authInstance = await auth(locals.runtime.env);
-    const session = await authInstance.api.getSession({
-      headers: request.headers,
-    });
+    // Get query parameters
+    const url = new URL(request.url);
+    const token = url.searchParams.get("token");
 
-    if (!session?.user) {
+    if (!token) {
       return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
+        JSON.stringify({ success: false, error: "Token is required" }),
         {
           status: 401,
           headers: {
@@ -27,20 +25,24 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Get query parameters
-    const url = new URL(request.url);
-    const key = url.searchParams.get("key");
-    const uploadId = url.searchParams.get("uploadId");
-    const partNumber = url.searchParams.get("partNumber");
+    // Decode and validate token
+    let tokenData: {
+      userId: string;
+      key: string;
+      uploadId: string;
+      partNumber: number;
+      expires: number;
+      signature: string;
+    };
 
-    if (!key || !uploadId || !partNumber) {
+    try {
+      const decodedToken = Buffer.from(token, "base64url").toString("utf-8");
+      tokenData = JSON.parse(decodedToken);
+    } catch (error) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Missing required parameters: key, uploadId, partNumber",
-        }),
+        JSON.stringify({ success: false, error: "Invalid token format" }),
         {
-          status: 400,
+          status: 401,
           headers: {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
@@ -51,6 +53,49 @@ export const POST: APIRoute = async ({ request, locals }) => {
         }
       );
     }
+
+    // Check if token is expired
+    if (Date.now() > tokenData.expires) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Token has expired" }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
+      );
+    }
+
+    // Validate signature
+    const expectedSignature = crypto
+      .createHmac("sha256", locals.runtime.env.BETTER_AUTH_SECRET)
+      .update(
+        `${tokenData.userId}:${tokenData.key}:${tokenData.uploadId}:${tokenData.partNumber}:${tokenData.expires}`
+      )
+      .digest("hex");
+
+    if (tokenData.signature !== expectedSignature) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid token signature" }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
+      );
+    }
+
+    const { userId, key, uploadId, partNumber } = tokenData;
 
     // Get the file chunk from the request body
     const chunk = await request.arrayBuffer();
@@ -89,9 +134,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
         },
         customMetadata: {
           uploadId,
-          partNumber,
+          partNumber: partNumber.toString(),
           originalKey: key,
-          userId: session.user.id,
+          userId: userId,
         },
       }
     );
@@ -101,7 +146,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return new Response(
       JSON.stringify({
         success: true,
-        partNumber: parseInt(partNumber),
+        partNumber: partNumber,
         etag: uploadResult.etag,
         size: chunk.byteLength,
       }),
