@@ -89,19 +89,27 @@ export class FileService {
     const basePath = import.meta.env.ASSETS_PREFIX;
     try {
       if (!this.bucket) {
+        console.error("R2 bucket not available");
         return {
           success: false,
           error: "R2 bucket not available",
         };
       }
 
-      // Generate a unique key for the file
-      const timestamp = Date.now();
-      const extension = this.getFileExtension(filename);
-      const key = `files/${userId}/${timestamp}-${this.generateRandomString()}.${extension}`;
+      console.log(`Starting R2 upload for key: ${key}, filename: ${filename}`);
+      console.log(
+        `File type: ${
+          file instanceof ArrayBuffer ? "ArrayBuffer" : "ReadableStream"
+        }`
+      );
+      console.log(
+        `File size: ${
+          file instanceof ArrayBuffer ? file.byteLength : "streaming"
+        } bytes`
+      );
 
-      // Upload the file to R2
-      console.log("Starting file upload to R2...");
+      // Upload the file to R2 using streaming
+      console.log("Starting streaming file upload to R2...");
       const uploadResult = await this.bucket.put(key, file, {
         httpMetadata: {
           contentType:
@@ -111,12 +119,15 @@ export class FileService {
         customMetadata: {
           userId,
           filename,
-          uploadedAt: timestamp.toString(),
+          uploadedAt: Date.now().toString(),
           originalName: filename,
         },
       });
 
+      console.log("R2 upload completed:", uploadResult);
+
       if (!uploadResult) {
+        console.error("R2 upload returned null/undefined");
         return {
           success: false,
           error: "Failed to upload file to R2",
@@ -125,6 +136,7 @@ export class FileService {
 
       // Return the URL that can be used to access the file
       const url = `${basePath}/api/files/${key}`;
+      console.log(`Generated file URL: ${url}`);
 
       return {
         success: true,
@@ -134,7 +146,7 @@ export class FileService {
         contentType,
       };
     } catch (error) {
-      console.error("Error uploading file:", error);
+      console.error("Error uploading file to R2:", error);
       return {
         success: false,
         error:
@@ -210,7 +222,7 @@ export class FileService {
    */
   validateFile(file: File): FileValidationResult {
     // Check file size (1GB limit for large files like videos)
-    const maxSize = 1000 * 1024 * 1024; // 100MB
+    const maxSize = 1000 * 1024 * 1024; // 1GB (1000MB)
     if (file.size > maxSize) {
       return {
         valid: false,

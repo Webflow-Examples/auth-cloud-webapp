@@ -95,13 +95,20 @@ export class FileService {
         };
       }
 
-      // Generate a unique key for the file
-      const timestamp = Date.now();
-      const extension = this.getFileExtension(filename);
-      const key = `files/${userId}/${timestamp}-${this.generateRandomString()}.${extension}`;
+      console.log(`Starting R2 upload for key: ${key}, filename: ${filename}`);
+      console.log(
+        `File type: ${
+          file instanceof ArrayBuffer ? "ArrayBuffer" : "ReadableStream"
+        }`
+      );
+      console.log(
+        `File size: ${
+          file instanceof ArrayBuffer ? file.byteLength : "streaming"
+        } bytes`
+      );
 
-      // Upload the file to R2
-      console.log("Starting file upload to R2...");
+      // Upload the file to R2 using streaming
+      console.log("Starting streaming file upload to R2...");
       const uploadResult = await this.bucket.put(key, file, {
         httpMetadata: {
           contentType:
@@ -111,12 +118,15 @@ export class FileService {
         customMetadata: {
           userId,
           filename,
-          uploadedAt: timestamp.toString(),
+          uploadedAt: Date.now().toString(),
           originalName: filename,
         },
       });
 
+      console.log("R2 upload completed:", uploadResult);
+
       if (!uploadResult) {
+        console.error("R2 upload returned null/undefined");
         return {
           success: false,
           error: "Failed to upload file to R2",
@@ -125,6 +135,7 @@ export class FileService {
 
       // Return the URL that can be used to access the file
       const url = `${this.baseUrl}${config.assetPrefix}/api/files/${key}`;
+      console.log(`Generated file URL: ${url}`);
 
       return {
         success: true,

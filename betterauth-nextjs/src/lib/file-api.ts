@@ -182,15 +182,27 @@ export function uploadFileWithProgress(
       });
 
       xhr.addEventListener("load", () => {
+        console.log(`Upload response status: ${xhr.status}`);
+        console.log(`Upload response text:`, xhr.responseText);
+
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const data = JSON.parse(xhr.responseText) as FileUploadResponse;
+            console.log(`Parsed upload response:`, data);
             resolve(data);
           } catch (error) {
+            console.error(`Failed to parse upload response:`, error);
+            console.error(`Raw response:`, xhr.responseText);
             resolve({ success: false, error: "Invalid response from server" });
           }
         } else {
-          reject(new Error(`Upload failed: ${xhr.status}`));
+          console.error(
+            `Upload failed with status ${xhr.status}:`,
+            xhr.responseText
+          );
+          reject(
+            new Error(`Upload failed: ${xhr.status} - ${xhr.responseText}`)
+          );
         }
       });
 

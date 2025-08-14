@@ -96,14 +96,55 @@ export async function POST(
     }
 
     // Upload the file using the provided key
-    const fileBuffer = await file.arrayBuffer();
-    const uploadResult = await fileService.uploadFileWithKey(
-      userId,
-      fileBuffer,
-      key,
-      file.name,
-      file.type
+    console.log(
+      `Processing upload for file: ${file.name}, size: ${file.size} bytes`
     );
+
+    let uploadResult;
+
+    // Try streaming first, fallback to buffer for smaller files or if streaming fails
+    if (file.size > 50 * 1024 * 1024) {
+      // 50MB threshold
+      try {
+        console.log(
+          `Using streaming upload for large file (${file.size} bytes)`
+        );
+        const fileStream = file.stream();
+        uploadResult = await fileService.uploadFileWithKey(
+          userId,
+          fileStream,
+          key,
+          file.name,
+          file.type
+        );
+      } catch (streamError) {
+        console.warn(
+          `Streaming upload failed, falling back to buffer:`,
+          streamError
+        );
+        const fileBuffer = await file.arrayBuffer();
+        uploadResult = await fileService.uploadFileWithKey(
+          userId,
+          fileBuffer,
+          key,
+          file.name,
+          file.type
+        );
+      }
+    } else {
+      // For smaller files, use buffer upload
+      console.log(`Using buffer upload for smaller file (${file.size} bytes)`);
+      const fileBuffer = await file.arrayBuffer();
+      uploadResult = await fileService.uploadFileWithKey(
+        userId,
+        fileBuffer,
+        key,
+        file.name,
+        file.type
+      );
+    }
+
+    console.log(`Upload result:`, uploadResult);
 
     if (!uploadResult.success) {
       return new Response(
