@@ -58,12 +58,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // Validate file size (1GB limit)
-    const maxSize = 1000 * 1024 * 1024; // 100MB
+    const maxSize = 1000 * 1024 * 1024; // 1GB
     if (fileSize > maxSize) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "File size must be less than 100MB",
+          error: "File size must be less than 1GB",
         }),
         {
           status: 400,
@@ -83,6 +83,58 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const key = `files/${userId}/${Date.now()}-${Math.random()
       .toString(36)
       .substring(2)}.${fileExtension}`;
+
+    // For large files (>100MB), use multipart uploads to avoid worker timeouts
+    if (fileSize > 100 * 1024 * 1024) {
+      console.log(
+        `Generating multipart upload for large file: ${fileSize} bytes`
+      );
+
+      try {
+        // Initialize multipart upload
+        const multipartUpload =
+          await locals.runtime.env.USER_AVATARS.createMultipartUpload(key, {
+            httpMetadata: {
+              contentType: fileType,
+              cacheControl: "public, max-age=31536000",
+            },
+            customMetadata: {
+              userId: userId,
+              filename: fileName,
+              uploadedAt: Date.now().toString(),
+              originalName: fileName,
+            },
+          });
+
+        console.log(`Multipart upload initialized:`, multipartUpload);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            uploadId: multipartUpload.uploadId,
+            key,
+            multipartUpload: true,
+            // Client will need to get presigned URLs for each part
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": corsOrigin,
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+              "Access-Control-Allow-Credentials": "true",
+            },
+          }
+        );
+      } catch (error) {
+        console.error("Error initializing multipart upload:", error);
+        // Fall back to worker-based upload
+      }
+    }
+
+    // For smaller files or if presigned URL fails, use the existing worker-based approach
+    console.log(`Generating worker upload URL for file: ${fileSize} bytes`);
 
     // Generate a temporary upload token with embedded data
     const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
