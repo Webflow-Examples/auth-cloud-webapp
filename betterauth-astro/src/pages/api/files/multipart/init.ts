@@ -1,10 +1,7 @@
 import type { APIRoute } from "astro";
-import { auth } from "../../utils/auth";
-import { createFileService } from "../../utils/file-service";
-import crypto from "crypto";
+import { auth } from "../../../../utils/auth";
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  // Get the origin URL from the environment variable
   const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
 
   try {
@@ -30,7 +27,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    const userId = session.user.id;
     const body = (await request.json()) as {
       fileName: string;
       fileType: string;
@@ -57,88 +53,35 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Validate file size (1GB limit)
-    const maxSize = 1000 * 1024 * 1024; // 1GB
-    if (fileSize > maxSize) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "File size must be less than 1GB",
-        }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": corsOrigin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Credentials": "true",
-          },
-        }
-      );
-    }
-
     // Generate a unique key for the file
     const fileExtension = fileName.split(".").pop() || "";
-    const key = `files/${userId}/${Date.now()}-${Math.random()
+    const key = `files/${session.user.id}/${Date.now()}-${Math.random()
       .toString(36)
       .substring(2)}.${fileExtension}`;
 
-    // For large files (>100MB), redirect to multipart upload
-    if (fileSize > 100 * 1024 * 1024) {
-      console.log(
-        `Large file detected: ${fileSize} bytes - redirecting to multipart upload`
-      );
+    // Initialize multipart upload using R2's S3-compatible API
+    console.log(`Attempting to create multipart upload for key: ${key}`);
 
-      // Return a response that indicates this should use multipart upload
-      return new Response(
-        JSON.stringify({
-          success: true,
-          multipartRequired: true,
-          message: "Large file detected, use multipart upload",
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": corsOrigin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Credentials": "true",
-          },
-        }
-      );
-    }
+    const multipartUpload =
+      await locals.runtime.env.USER_AVATARS.createMultipartUpload(key, {
+        httpMetadata: {
+          contentType: fileType,
+          cacheControl: "public, max-age=31536000",
+        },
+        customMetadata: {
+          userId: session.user.id,
+          filename: fileName,
+          uploadedAt: Date.now().toString(),
+          originalName: fileName,
+        },
+      });
 
-    // For smaller files or if presigned URL fails, use the existing worker-based approach
-    console.log(`Generating worker upload URL for file: ${fileSize} bytes`);
-
-    // Generate a temporary upload token with embedded data
-    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
-    const tokenData = {
-      userId,
-      key,
-      expires,
-      signature: crypto
-        .createHmac("sha256", locals.runtime.env.BETTER_AUTH_SECRET)
-        .update(`${userId}:${key}:${expires}`)
-        .digest("hex"),
-    };
-
-    const token = Buffer.from(JSON.stringify(tokenData)).toString("base64url");
-
-    // Create the upload URL - use the assets prefix (worker URL) for the actual upload
-    const assetsPrefix = import.meta.env.ASSETS_PREFIX as string;
-    const uploadUrl = assetsPrefix.startsWith("http")
-      ? `${assetsPrefix}/api/files/temp-upload/${token}`
-      : `${
-          new URL(request.url).origin
-        }${assetsPrefix}/api/files/temp-upload/${token}`;
+    console.log(`Multipart upload initialized:`, multipartUpload);
 
     return new Response(
       JSON.stringify({
         success: true,
-        uploadUrl,
+        uploadId: multipartUpload.uploadId,
         key,
       }),
       {
@@ -153,7 +96,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     );
   } catch (error) {
-    console.error("Error generating upload URL:", error);
+    console.error("Error initializing multipart upload:", error);
     return new Response(
       JSON.stringify({
         success: false,

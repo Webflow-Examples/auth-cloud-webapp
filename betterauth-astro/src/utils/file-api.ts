@@ -38,11 +38,10 @@ export interface UploadProgress {
   eta: number; // seconds
 }
 
-export interface MultipartUploadResponse {
+export interface MultipartInitResponse {
   success: boolean;
   uploadId?: string;
   key?: string;
-  multipartUpload?: boolean;
   error?: string;
 }
 
@@ -53,11 +52,20 @@ export interface MultipartPartResponse {
   error?: string;
 }
 
+export interface MultipartUploadPartResponse {
+  success: boolean;
+  partNumber?: number;
+  etag?: string;
+  size?: number;
+  error?: string;
+}
+
 export interface MultipartCompleteResponse {
   success: boolean;
   url?: string;
   key?: string;
   etag?: string;
+  size?: number;
   error?: string;
 }
 
@@ -258,46 +266,51 @@ export async function uploadFileMultipart(
   onProgress?: (progress: UploadProgress) => void
 ): Promise<FileUploadResponse> {
   try {
-    // Step 1: Initialize multipart upload
-    const baseUrl = import.meta.env.BASE_URL as string;
-    const initResponse = await fetch(
-      `${baseUrl}/api/generate-file-upload-url`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-        }),
-      }
+    console.log(
+      `Starting multipart upload for file: ${file.name}, size: ${file.size} bytes`
     );
 
+    // Step 1: Initialize multipart upload
+    const baseUrl = import.meta.env.BASE_URL as string;
+    console.log(`Using base URL: ${baseUrl}`);
+
+    const initResponse = await fetch(`${baseUrl}/api/files/multipart/init`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      }),
+    });
+
+    console.log(`Init response status: ${initResponse.status}`);
+
     if (!initResponse.ok) {
+      const errorText = await initResponse.text();
+      console.error(`Init response error: ${errorText}`);
       throw new Error(
-        `Failed to initialize multipart upload: ${initResponse.status}`
+        `Failed to initialize multipart upload: ${initResponse.status} - ${errorText}`
       );
     }
 
-    const initData = (await initResponse.json()) as MultipartUploadResponse;
-    if (!initData.success || !initData.multipartUpload) {
+    const initData = (await initResponse.json()) as MultipartInitResponse;
+    console.log(`Init response data:`, initData);
+    if (!initData.success || !initData.uploadId || !initData.key) {
       throw new Error(
         initData.error || "Failed to initialize multipart upload"
       );
     }
 
     const { uploadId, key } = initData;
-    if (!uploadId || !key) {
-      throw new Error("Missing upload ID or key");
-    }
 
     // Step 2: Split file into parts (5MB each)
     const partSize = 5 * 1024 * 1024; // 5MB
     const totalParts = Math.ceil(file.size / partSize);
-    const parts: Array<{ partNumber: number; etag: string }> = [];
+    const parts: Array<{ partNumber: number; etag: string; size: number }> = [];
 
     console.log(
       `Starting multipart upload: ${totalParts} parts of ${partSize} bytes each`
@@ -308,7 +321,7 @@ export async function uploadFileMultipart(
       const end = Math.min(start + partSize, file.size);
       const chunk = file.slice(start, end);
 
-      // Get presigned URL for this part
+      // Get upload URL for this part
       const partUrlResponse = await fetch(
         `${baseUrl}/api/files/multipart/get-part-url`,
         {
@@ -332,12 +345,12 @@ export async function uploadFileMultipart(
       const partUrlData =
         (await partUrlResponse.json()) as MultipartPartResponse;
       if (!partUrlData.success || !partUrlData.presignedUrl) {
-        throw new Error(`Failed to get presigned URL for part ${partNumber}`);
+        throw new Error(`Failed to get upload URL for part ${partNumber}`);
       }
 
       // Upload this part
       const uploadResponse = await fetch(partUrlData.presignedUrl, {
-        method: "PUT",
+        method: "POST",
         body: chunk,
       });
 
@@ -345,12 +358,19 @@ export async function uploadFileMultipart(
         throw new Error(`Failed to upload part ${partNumber}`);
       }
 
-      const etag = uploadResponse.headers.get("etag");
-      if (!etag) {
-        throw new Error(`No ETag received for part ${partNumber}`);
+      const uploadData =
+        (await uploadResponse.json()) as MultipartUploadPartResponse;
+      if (!uploadData.success) {
+        throw new Error(
+          `Failed to upload part ${partNumber}: ${uploadData.error}`
+        );
       }
 
-      parts.push({ partNumber, etag });
+      parts.push({
+        partNumber: uploadData.partNumber!,
+        etag: uploadData.etag!,
+        size: uploadData.size!,
+      });
 
       // Update progress
       if (onProgress) {
@@ -381,6 +401,8 @@ export async function uploadFileMultipart(
           key,
           uploadId,
           parts,
+          fileName: file.name,
+          fileType: file.type,
         }),
       }
     );

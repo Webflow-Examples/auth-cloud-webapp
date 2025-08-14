@@ -1,6 +1,5 @@
 import type { APIRoute } from "astro";
 import { auth } from "../../../../utils/auth";
-import crypto from "crypto";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
@@ -54,17 +53,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Generate presigned URL for this part
-    const presignedUrl =
-      await locals.runtime.env.USER_AVATARS.createPresignedUrl({
-        key,
-        method: "PUT",
-        expiresIn: 3600, // 1 hour
-        query: {
-          partNumber: partNumber.toString(),
-          uploadId,
-        },
-      });
+    // Since R2 doesn't support presigned URLs for multipart uploads in the way we need,
+    // let's implement a different approach using chunked uploads through the worker
+    // This will still avoid the timeout issues by processing smaller chunks
+
+    // For now, return a URL that will handle the part upload through the worker
+    const baseUrl = import.meta.env.ASSETS_PREFIX as string;
+    const presignedUrl = `${baseUrl}/api/files/multipart/upload-part?key=${encodeURIComponent(
+      key
+    )}&uploadId=${encodeURIComponent(uploadId)}&partNumber=${partNumber}`;
 
     return new Response(
       JSON.stringify({
