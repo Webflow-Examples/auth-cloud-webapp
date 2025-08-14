@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { auth } from "../../utils/auth";
-import { createFileService } from "../../utils/file-service";
+import { auth } from "../../../utils/auth";
+import { createFileService } from "../../../utils/file-service";
 
 export const DELETE: APIRoute = async ({ request, locals }) => {
   try {
