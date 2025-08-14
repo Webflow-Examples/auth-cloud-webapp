@@ -122,6 +122,7 @@ if (!session?.user) {
 <script>
   import {
     uploadFile,
+    uploadFileWithProgress,
     listFiles,
     deleteFile,
     getFileTypeCategory,
@@ -344,9 +345,19 @@ if (!session?.user) {
     showStatus('Uploading file...', 'info');
 
     try {
-      // Step 1: Generate upload URL
-      updateProgress(10, 'Generating upload URL...');
-      const response = await uploadFile(selectedFile);
+      // Use the new progress tracking function
+      const response = await uploadFileWithProgress(selectedFile, (progress) => {
+        // Update progress bar and text
+        updateProgress(progress.percent, `Uploading... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)} (${Math.round(progress.speed / 1024)} KB/s)`);
+        
+        // Show ETA if available
+        if (progress.eta > 0 && progress.eta < Infinity) {
+          const etaText = progress.eta > 60 
+            ? `${Math.round(progress.eta / 60)}m ${Math.round(progress.eta % 60)}s remaining`
+            : `${Math.round(progress.eta)}s remaining`;
+          progressText.textContent = `Uploading... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)} (${Math.round(progress.speed / 1024)} KB/s) - ${etaText}`;
+        }
+      });
       
       if (response.success) {
         updateProgress(100, 'Upload complete!');

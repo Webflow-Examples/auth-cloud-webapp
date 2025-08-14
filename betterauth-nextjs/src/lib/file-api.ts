@@ -32,6 +32,14 @@ export interface FileDeleteResponse {
   error?: string;
 }
 
+export interface UploadProgress {
+  loaded: number;
+  total: number;
+  percent: number;
+  speed: number; // bytes per second
+  eta: number; // seconds
+}
+
 /**
  * Upload a file to the server
  */
@@ -98,6 +106,113 @@ export async function uploadFile(file: File): Promise<FileUploadResponse> {
       error: error instanceof Error ? error.message : "Upload failed",
     };
   }
+}
+
+/**
+ * Upload a file with progress tracking using XMLHttpRequest
+ */
+export function uploadFileWithProgress(
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<FileUploadResponse> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Step 1: Generate upload URL with signature
+      const baseUrl = config.assetPrefix;
+      const generateUrlResponse = await fetch(
+        `${baseUrl}/api/generate-file-upload-url`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+          }),
+        }
+      );
+
+      if (!generateUrlResponse.ok) {
+        const errorText = await generateUrlResponse.text();
+        console.error("Generate URL error:", errorText);
+        throw new Error(
+          `Failed to generate upload URL: ${generateUrlResponse.status}`
+        );
+      }
+
+      const generateData = (await generateUrlResponse.json()) as {
+        success: boolean;
+        uploadUrl?: string;
+        key?: string;
+        error?: string;
+      };
+
+      if (!generateData.success) {
+        throw new Error(generateData.error || "Failed to generate upload URL");
+      }
+
+      // Step 2: Upload file using XMLHttpRequest for progress tracking
+      const xhr = new XMLHttpRequest();
+      const startTime = Date.now();
+      let lastLoaded = 0;
+      let lastTime = startTime;
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = (e.loaded / e.total) * 100;
+          const currentTime = Date.now();
+          const timeDiff = currentTime - lastTime;
+          const bytesDiff = e.loaded - lastLoaded;
+          const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0; // bytes per millisecond
+          const remainingBytes = e.total - e.loaded;
+          const eta = speed > 0 ? remainingBytes / speed : 0; // milliseconds
+
+          onProgress({
+            loaded: e.loaded,
+            total: e.total,
+            percent,
+            speed: speed * 1000, // convert to bytes per second
+            eta: eta / 1000, // convert to seconds
+          });
+
+          lastLoaded = e.loaded;
+          lastTime = currentTime;
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText) as FileUploadResponse;
+            resolve(data);
+          } catch (error) {
+            resolve({ success: false, error: "Invalid response from server" });
+          }
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status}`));
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        reject(new Error("Upload failed due to network error"));
+      });
+
+      xhr.addEventListener("abort", () => {
+        reject(new Error("Upload was cancelled"));
+      });
+
+      // Prepare form data
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Start upload
+      xhr.open("POST", generateData.uploadUrl!);
+      xhr.send(formData);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 /**
