@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import {
   uploadFile,
+  uploadFileWithProgress,
   listFiles,
   deleteFile,
   FileInfo,
   getFileTypeCategory,
   formatFileSize,
   getFileIcon,
+  UploadProgress,
 } from "@/lib/file-api";
 import config from "../../../next.config";
 
@@ -97,7 +99,23 @@ export default function FilesPage() {
     showStatus("Uploading file...", "info");
 
     try {
-      const response = await uploadFile(selectedFile);
+      const response = await uploadFileWithProgress(
+        selectedFile,
+        (progress: UploadProgress) => {
+          // Update progress state for real-time progress display
+          console.log(
+            `Upload progress: ${progress.percent.toFixed(
+              1
+            )}% - ${formatFileSize(progress.loaded)} / ${formatFileSize(
+              progress.total
+            )} (${Math.round(progress.speed / 1024)} KB/s)`
+          );
+
+          // You could add a progress state here if you want to show more detailed progress
+          // setUploadProgress(progress);
+        }
+      );
+
       if (response.success) {
         showStatus("File uploaded successfully!", "success");
         setSelectedFile(null);
