@@ -1,0 +1,69 @@
+---
+// UppyUploader.astro
+---
+
+<!-- Import Uppy CSS -->
+<link href="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.css" rel="stylesheet">
+
+<div class="uppy-uploader">
+  <div id="uppy-dashboard"></div>
+  <div id="uppy-progress"></div>
+</div>
+
+<script>
+  import { uppyUploader } from '../utils/uppy-upload';
+  import Dashboard from '@uppy/dashboard';
+  import ProgressBar from '@uppy/progress-bar';
+
+  // Add Dashboard plugin
+  uppyUploader.getUppy().use(Dashboard, {
+    inline: true,
+    target: '#uppy-dashboard',
+    height: 300,
+    showProgressDetails: true,
+    proudlyDisplayPoweredByUppy: false,
+  });
+
+  // Add Progress Bar plugin
+  uppyUploader.getUppy().use(ProgressBar, {
+    target: '#uppy-progress',
+    hideAfterFinish: false,
+  });
+
+  // Example usage
+  (window as any).uploadFile = async (file: File) => {
+    try {
+      const result = await uppyUploader.uploadFile(file, {
+        onProgress: (progress) => {
+          console.log(`Upload progress: ${progress.percent.toFixed(1)}%`);
+        },
+      });
+
+      if (result.success) {
+        console.log('Upload successful:', result.url);
+        // Handle successful upload
+      } else {
+        console.error('Upload failed:', result.error);
+        // Handle upload error
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+    }
+  };
+</script>
+
+<style>
+  .uppy-uploader {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  #uppy-dashboard {
+    margin-bottom: 20px;
+  }
+
+  #uppy-progress {
+    margin-top: 20px;
+  }
+</style>

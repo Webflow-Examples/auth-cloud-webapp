@@ -56,75 +56,97 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     console.log(
-      `Completing multipart upload for key: ${key}, parts: ${parts.length}`
+      `Completing multipart upload for key: ${key}, uploadId: ${uploadId}, parts: ${parts.length}`
     );
 
-    // Sort parts by part number
-    parts.sort((a, b) => a.partNumber - b.partNumber);
-
-    // Combine all parts into a single file
-    const chunks: ArrayBuffer[] = [];
-    let totalSize = 0;
-
-    for (const part of parts) {
-      const partKey = `${key}.part${part.partNumber}`;
-      const partObject = await locals.runtime.env.USER_AVATARS.get(partKey);
-
-      if (!partObject) {
-        throw new Error(`Part ${part.partNumber} not found`);
-      }
-
-      const partBuffer = await partObject.arrayBuffer();
-      chunks.push(partBuffer);
-      totalSize += partBuffer.byteLength;
-    }
-
-    // Combine all chunks
-    const combinedBuffer = new Uint8Array(totalSize);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combinedBuffer.set(new Uint8Array(chunk), offset);
-      offset += chunk.byteLength;
-    }
-
-    console.log(`Combined ${chunks.length} parts into ${totalSize} bytes`);
-
-    // Upload the combined file
-    const uploadResult = await locals.runtime.env.USER_AVATARS.put(
-      key,
-      combinedBuffer,
-      {
-        httpMetadata: {
-          contentType: fileType,
-          cacheControl: "public, max-age=31536000",
-        },
-        customMetadata: {
-          userId: session.user.id,
-          filename: fileName,
-          uploadedAt: Date.now().toString(),
-          originalName: fileName,
-          uploadId,
-          partsCount: parts.length.toString(),
-        },
-      }
+    // Remove duplicates and sort parts by part number
+    const uniqueParts = parts.filter(
+      (part, index, self) =>
+        index === self.findIndex((p) => p.partNumber === part.partNumber)
     );
 
-    console.log(`Combined file uploaded successfully:`, uploadResult);
+    uniqueParts.sort((a, b) => a.partNumber - b.partNumber);
+    console.log("Original parts count:", parts.length);
+    console.log("Unique parts count:", uniqueParts.length);
+    console.log("Sorted unique parts:", uniqueParts);
 
-    // Clean up individual parts
-    for (const part of parts) {
-      const partKey = `${key}.part${part.partNumber}`;
-      try {
-        await locals.runtime.env.USER_AVATARS.delete(partKey);
-        console.log(`Cleaned up part ${part.partNumber}`);
-      } catch (error) {
-        console.warn(`Failed to clean up part ${part.partNumber}:`, error);
+    // Validate parts
+    for (let i = 0; i < uniqueParts.length; i++) {
+      if (uniqueParts[i].partNumber !== i + 1) {
+        throw new Error(
+          `Missing part ${i + 1}. Expected part ${i + 1}, got part ${
+            uniqueParts[i].partNumber
+          }`
+        );
+      }
+      if (!uniqueParts[i].etag || uniqueParts[i].etag.length === 0) {
+        throw new Error(`Invalid etag for part ${uniqueParts[i].partNumber}`);
       }
     }
+
+    let uploadResult: any;
+    try {
+      // Use R2's proper multipart upload completion
+      const multipartUpload =
+        locals.runtime.env.USER_AVATARS.resumeMultipartUpload(key, uploadId);
+
+      console.log("Resumed multipart upload:", {
+        key,
+        uploadId,
+        partsCount: uniqueParts.length,
+      });
+
+      // Convert parts to R2UploadedPart format
+      const uploadedParts = uniqueParts.map((part) => ({
+        partNumber: part.partNumber,
+        etag: part.etag.replace(/"/g, ""), // Remove quotes if present
+      }));
+
+      console.log("Uploaded parts for R2:", uploadedParts);
+
+      // Add a longer delay to ensure all parts are fully processed by R2
+      console.log("Waiting 3 seconds for R2 to process all parts...");
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Complete the multipart upload with retry logic
+      let retryCount = 0;
+      const maxRetries = 5;
+
+      while (retryCount < maxRetries) {
+        try {
+          uploadResult = await multipartUpload.complete(uploadedParts);
+          break; // Success, exit retry loop
+        } catch (retryError) {
+          retryCount++;
+          console.log(`Completion attempt ${retryCount} failed:`, retryError);
+
+          if (retryCount >= maxRetries) {
+            throw retryError;
+          }
+
+          // Wait before retrying (exponential backoff)
+          await new Promise((resolve) =>
+            setTimeout(resolve, 2000 * retryCount)
+          );
+        }
+      }
+
+      console.log(`Multipart upload completed successfully:`, uploadResult);
+    } catch (multipartError) {
+      console.error("Error in multipart completion:", multipartError);
+      throw multipartError;
+    }
+
+    // Update the file metadata after completion
+    // Note: R2 doesn't support updating metadata directly, so we'll need to handle this differently
+    // For now, the file will be accessible but without custom metadata
 
     // Generate the final URL
     const basePath = import.meta.env.ASSETS_PREFIX;
     const url = `${basePath}/api/files/${key}`;
+
+    // Calculate total size from parts
+    const totalSize = uniqueParts.reduce((sum, part) => sum + part.size, 0);
 
     return new Response(
       JSON.stringify({
@@ -147,10 +169,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
     );
   } catch (error) {
     console.error("Error completing multipart upload:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({
         success: false,
-        error: "Internal server error",
+        error: `Internal server error: ${errorMessage}`,
       }),
       {
         status: 500,
