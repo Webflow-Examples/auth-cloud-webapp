@@ -123,6 +123,7 @@ if (!session?.user) {
   import {
     uploadFile,
     uploadFileWithProgress,
+    uploadFileMultipart,
     listFiles,
     deleteFile,
     getFileTypeCategory,
@@ -345,19 +346,32 @@ if (!session?.user) {
     showStatus('Uploading file...', 'info');
 
     try {
-      // Use the new progress tracking function
-      const response = await uploadFileWithProgress(selectedFile, (progress) => {
-        // Update progress bar and text
-        updateProgress(progress.percent, `Uploading... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)} (${Math.round(progress.speed / 1024)} KB/s)`);
-        
-        // Show ETA if available
-        if (progress.eta > 0 && progress.eta < Infinity) {
-          const etaText = progress.eta > 60 
-            ? `${Math.round(progress.eta / 60)}m ${Math.round(progress.eta % 60)}s remaining`
-            : `${Math.round(progress.eta)}s remaining`;
-          progressText.textContent = `Uploading... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)} (${Math.round(progress.speed / 1024)} KB/s) - ${etaText}`;
-        }
-      });
+      // Choose upload method based on file size
+      let response;
+      
+      if (selectedFile.size > 100 * 1024 * 1024) { // 100MB threshold
+        console.log(`Using multipart upload for large file: ${selectedFile.size} bytes`);
+        response = await uploadFileMultipart(selectedFile, (progress) => {
+          // Update progress bar and text for multipart upload
+          updateProgress(progress.percent, `Uploading part ${Math.ceil(progress.percent / 20)}... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)}`);
+        });
+      } else {
+        console.log(`Using streaming upload for smaller file: ${selectedFile.size} bytes`);
+        response = await uploadFileWithProgress(selectedFile, (progress) => {
+          // Update progress bar and text
+          updateProgress(progress.percent, `Uploading... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)} (${Math.round(progress.speed / 1024)} KB/s)`);
+          
+          // Show ETA if available
+          if (progress.eta > 0 && progress.eta < Infinity) {
+            const etaText = progress.eta > 60 
+              ? `${Math.round(progress.eta / 60)}m ${Math.round(progress.eta % 60)}s remaining`
+              : `${Math.round(progress.eta)}s remaining`;
+            if (progressText) {
+              progressText.textContent = `Uploading... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)} (${Math.round(progress.speed / 1024)} KB/s) - ${etaText}`;
+            }
+          }
+        });
+      }
       
       if (response.success) {
         updateProgress(100, 'Upload complete!');

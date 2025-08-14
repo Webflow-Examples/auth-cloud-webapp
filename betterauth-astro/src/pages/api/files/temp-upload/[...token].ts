@@ -151,6 +151,7 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
       `Processing upload for file: ${file.name}, size: ${file.size} bytes`
     );
 
+    const startTime = Date.now();
     let uploadResult;
 
     // Try streaming first, fallback to buffer for smaller files or if streaming fails
@@ -161,6 +162,8 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
           `Using streaming upload for large file (${file.size} bytes)`
         );
         const fileStream = file.stream();
+        console.log(`File stream created, starting R2 upload...`);
+
         uploadResult = await fileService.uploadFileWithKey(
           userId,
           fileStream,
@@ -168,12 +171,18 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
           file.name,
           file.type
         );
+
+        console.log(
+          `Streaming upload completed in ${Date.now() - startTime}ms`
+        );
       } catch (streamError) {
         console.warn(
           `Streaming upload failed, falling back to buffer:`,
           streamError
         );
         const fileBuffer = await file.arrayBuffer();
+        console.log(`Buffer created, size: ${fileBuffer.byteLength} bytes`);
+
         uploadResult = await fileService.uploadFileWithKey(
           userId,
           fileBuffer,
@@ -181,6 +190,8 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
           file.name,
           file.type
         );
+
+        console.log(`Buffer upload completed in ${Date.now() - startTime}ms`);
       }
     } else {
       // For smaller files, use buffer upload
@@ -195,6 +206,7 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
       );
     }
 
+    console.log(`Total upload time: ${Date.now() - startTime}ms`);
     console.log(`Upload result:`, uploadResult);
 
     if (!uploadResult.success) {

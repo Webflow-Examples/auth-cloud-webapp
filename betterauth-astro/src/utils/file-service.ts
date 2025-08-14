@@ -110,6 +110,8 @@ export class FileService {
 
       // Upload the file to R2 using streaming
       console.log("Starting streaming file upload to R2...");
+      const uploadStartTime = Date.now();
+
       const uploadResult = await this.bucket.put(key, file, {
         httpMetadata: {
           contentType:
@@ -124,7 +126,16 @@ export class FileService {
         },
       });
 
-      console.log("R2 upload completed:", uploadResult);
+      const uploadDuration = Date.now() - uploadStartTime;
+      console.log(`R2 upload completed in ${uploadDuration}ms:`, uploadResult);
+
+      // Check if upload took too long (potential timeout issue)
+      if (uploadDuration > 25000) {
+        // 25 seconds
+        console.warn(
+          `Upload took ${uploadDuration}ms - approaching worker timeout limit`
+        );
+      }
 
       if (!uploadResult) {
         console.error("R2 upload returned null/undefined");

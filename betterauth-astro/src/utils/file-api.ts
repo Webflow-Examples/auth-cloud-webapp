@@ -38,6 +38,29 @@ export interface UploadProgress {
   eta: number; // seconds
 }
 
+export interface MultipartUploadResponse {
+  success: boolean;
+  uploadId?: string;
+  key?: string;
+  multipartUpload?: boolean;
+  error?: string;
+}
+
+export interface MultipartPartResponse {
+  success: boolean;
+  presignedUrl?: string;
+  partNumber?: number;
+  error?: string;
+}
+
+export interface MultipartCompleteResponse {
+  success: boolean;
+  url?: string;
+  key?: string;
+  etag?: string;
+  error?: string;
+}
+
 /**
  * Upload a file to the server
  */
@@ -184,7 +207,7 @@ export function uploadFileWithProgress(
       xhr.addEventListener("load", () => {
         console.log(`Upload response status: ${xhr.status}`);
         console.log(`Upload response text:`, xhr.responseText);
-        
+
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const data = JSON.parse(xhr.responseText) as FileUploadResponse;
@@ -196,8 +219,13 @@ export function uploadFileWithProgress(
             resolve({ success: false, error: "Invalid response from server" });
           }
         } else {
-          console.error(`Upload failed with status ${xhr.status}:`, xhr.responseText);
-          reject(new Error(`Upload failed: ${xhr.status} - ${xhr.responseText}`));
+          console.error(
+            `Upload failed with status ${xhr.status}:`,
+            xhr.responseText
+          );
+          reject(
+            new Error(`Upload failed: ${xhr.status} - ${xhr.responseText}`)
+          );
         }
       });
 
@@ -220,6 +248,172 @@ export function uploadFileWithProgress(
       reject(error);
     }
   });
+}
+
+/**
+ * Upload a file using multipart upload for large files
+ */
+export async function uploadFileMultipart(
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<FileUploadResponse> {
+  try {
+    // Step 1: Initialize multipart upload
+    const baseUrl = import.meta.env.BASE_URL as string;
+    const initResponse = await fetch(
+      `${baseUrl}/api/generate-file-upload-url`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        }),
+      }
+    );
+
+    if (!initResponse.ok) {
+      throw new Error(
+        `Failed to initialize multipart upload: ${initResponse.status}`
+      );
+    }
+
+    const initData = (await initResponse.json()) as MultipartUploadResponse;
+    if (!initData.success || !initData.multipartUpload) {
+      throw new Error(
+        initData.error || "Failed to initialize multipart upload"
+      );
+    }
+
+    const { uploadId, key } = initData;
+    if (!uploadId || !key) {
+      throw new Error("Missing upload ID or key");
+    }
+
+    // Step 2: Split file into parts (5MB each)
+    const partSize = 5 * 1024 * 1024; // 5MB
+    const totalParts = Math.ceil(file.size / partSize);
+    const parts: Array<{ partNumber: number; etag: string }> = [];
+
+    console.log(
+      `Starting multipart upload: ${totalParts} parts of ${partSize} bytes each`
+    );
+
+    for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+      const start = (partNumber - 1) * partSize;
+      const end = Math.min(start + partSize, file.size);
+      const chunk = file.slice(start, end);
+
+      // Get presigned URL for this part
+      const partUrlResponse = await fetch(
+        `${baseUrl}/api/files/multipart/get-part-url`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            key,
+            uploadId,
+            partNumber,
+          }),
+        }
+      );
+
+      if (!partUrlResponse.ok) {
+        throw new Error(`Failed to get part URL for part ${partNumber}`);
+      }
+
+      const partUrlData =
+        (await partUrlResponse.json()) as MultipartPartResponse;
+      if (!partUrlData.success || !partUrlData.presignedUrl) {
+        throw new Error(`Failed to get presigned URL for part ${partNumber}`);
+      }
+
+      // Upload this part
+      const uploadResponse = await fetch(partUrlData.presignedUrl, {
+        method: "PUT",
+        body: chunk,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload part ${partNumber}`);
+      }
+
+      const etag = uploadResponse.headers.get("etag");
+      if (!etag) {
+        throw new Error(`No ETag received for part ${partNumber}`);
+      }
+
+      parts.push({ partNumber, etag });
+
+      // Update progress
+      if (onProgress) {
+        const loaded = partNumber * partSize;
+        const percent = (loaded / file.size) * 100;
+        onProgress({
+          loaded: Math.min(loaded, file.size),
+          total: file.size,
+          percent: Math.min(percent, 100),
+          speed: 0, // Can't calculate speed for multipart
+          eta: 0, // Can't calculate ETA for multipart
+        });
+      }
+
+      console.log(`Uploaded part ${partNumber}/${totalParts}`);
+    }
+
+    // Step 3: Complete multipart upload
+    const completeResponse = await fetch(
+      `${baseUrl}/api/files/multipart/complete`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          key,
+          uploadId,
+          parts,
+        }),
+      }
+    );
+
+    if (!completeResponse.ok) {
+      throw new Error(
+        `Failed to complete multipart upload: ${completeResponse.status}`
+      );
+    }
+
+    const completeData =
+      (await completeResponse.json()) as MultipartCompleteResponse;
+    if (!completeData.success) {
+      throw new Error(
+        completeData.error || "Failed to complete multipart upload"
+      );
+    }
+
+    return {
+      success: true,
+      url: completeData.url,
+      key: completeData.key,
+      filename: file.name,
+      fileSize: file.size,
+      contentType: file.type,
+    };
+  } catch (error) {
+    console.error("Error in multipart upload:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Multipart upload failed",
+    };
+  }
 }
 
 /**
