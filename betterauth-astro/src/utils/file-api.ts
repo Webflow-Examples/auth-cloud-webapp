@@ -351,6 +351,7 @@ export async function uploadFileMultipart(
       // Upload this part
       const uploadResponse = await fetch(partUrlData.presignedUrl, {
         method: "POST",
+        credentials: "include",
         body: chunk,
       });
 
