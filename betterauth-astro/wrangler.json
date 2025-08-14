@@ -14,6 +14,7 @@
   "d1_databases": [
     {
       "binding": "DB",
+      "database_id": "123",
       "database_name": "DB",
       "migrations_dir": "drizzle"
     }
