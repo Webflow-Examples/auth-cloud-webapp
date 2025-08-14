@@ -1,10 +1,7 @@
 import type { APIRoute } from "astro";
-import { auth } from "../../utils/auth";
-import { createFileService } from "../../utils/file-service";
-import crypto from "crypto";
+import { auth } from "../../../../utils/auth";
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  // Get the origin URL from the environment variable
   const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
 
   try {
@@ -30,19 +27,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    const userId = session.user.id;
-    const body = (await request.json()) as {
-      fileName: string;
-      fileType: string;
-      fileSize: number;
-    };
-    const { fileName, fileType, fileSize } = body;
+    // Get query parameters
+    const url = new URL(request.url);
+    const key = url.searchParams.get("key");
+    const uploadId = url.searchParams.get("uploadId");
+    const partNumber = url.searchParams.get("partNumber");
 
-    if (!fileName || !fileType || !fileSize) {
+    if (!key || !uploadId || !partNumber) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Missing required fields: fileName, fileType, fileSize",
+          error: "Missing required parameters: key, uploadId, partNumber",
         }),
         {
           status: 400,
@@ -57,13 +52,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Validate file size (1GB limit)
-    const maxSize = 1000 * 1024 * 1024; // 1GB
-    if (fileSize > maxSize) {
+    // Get the file chunk from the request body
+    const chunk = await request.arrayBuffer();
+
+    if (!chunk || chunk.byteLength === 0) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "File size must be less than 1GB",
+          error: "No file chunk provided",
         }),
         {
           status: 400,
@@ -78,68 +74,36 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Generate a unique key for the file
-    const fileExtension = fileName.split(".").pop() || "";
-    const key = `files/${userId}/${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2)}.${fileExtension}`;
+    console.log(
+      `Uploading part ${partNumber} for key ${key}, size: ${chunk.byteLength} bytes`
+    );
 
-    // For large files (>100MB), redirect to multipart upload
-    if (fileSize > 100 * 1024 * 1024) {
-      console.log(
-        `Large file detected: ${fileSize} bytes - redirecting to multipart upload`
-      );
+    // Upload this part to R2
+    const partKey = `${key}.part${partNumber}`;
+    const uploadResult = await locals.runtime.env.USER_AVATARS.put(
+      partKey,
+      chunk,
+      {
+        httpMetadata: {
+          contentType: "application/octet-stream",
+        },
+        customMetadata: {
+          uploadId,
+          partNumber,
+          originalKey: key,
+          userId: session.user.id,
+        },
+      }
+    );
 
-      // Return a response that indicates this should use multipart upload
-      return new Response(
-        JSON.stringify({
-          success: true,
-          multipartRequired: true,
-          message: "Large file detected, use multipart upload",
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": corsOrigin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Credentials": "true",
-          },
-        }
-      );
-    }
-
-    // For smaller files or if presigned URL fails, use the existing worker-based approach
-    console.log(`Generating worker upload URL for file: ${fileSize} bytes`);
-
-    // Generate a temporary upload token with embedded data
-    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
-    const tokenData = {
-      userId,
-      key,
-      expires,
-      signature: crypto
-        .createHmac("sha256", locals.runtime.env.BETTER_AUTH_SECRET)
-        .update(`${userId}:${key}:${expires}`)
-        .digest("hex"),
-    };
-
-    const token = Buffer.from(JSON.stringify(tokenData)).toString("base64url");
-
-    // Create the upload URL - use the assets prefix (worker URL) for the actual upload
-    const assetsPrefix = import.meta.env.ASSETS_PREFIX as string;
-    const uploadUrl = assetsPrefix.startsWith("http")
-      ? `${assetsPrefix}/api/files/temp-upload/${token}`
-      : `${
-          new URL(request.url).origin
-        }${assetsPrefix}/api/files/temp-upload/${token}`;
+    console.log(`Part ${partNumber} uploaded successfully:`, uploadResult);
 
     return new Response(
       JSON.stringify({
         success: true,
-        uploadUrl,
-        key,
+        partNumber: parseInt(partNumber),
+        etag: uploadResult.etag,
+        size: chunk.byteLength,
       }),
       {
         status: 200,
@@ -153,7 +117,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     );
   } catch (error) {
-    console.error("Error generating upload URL:", error);
+    console.error("Error uploading part:", error);
     return new Response(
       JSON.stringify({
         success: false,

@@ -30,9 +30,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const body = (await request.json()) as {
       key: string;
       uploadId: string;
-      parts: Array<{ partNumber: number; etag: string }>;
+      parts: Array<{ partNumber: number; etag: string; size: number }>;
+      fileName: string;
+      fileType: string;
     };
-    const { key, uploadId, parts } = body;
+    const { key, uploadId, parts, fileName, fileType } = body;
 
     if (!key || !uploadId || !parts || !Array.isArray(parts)) {
       return new Response(
@@ -53,15 +55,72 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Complete the multipart upload
-    const result =
-      await locals.runtime.env.USER_AVATARS.completeMultipartUpload(
-        key,
-        uploadId,
-        parts
-      );
+    console.log(
+      `Completing multipart upload for key: ${key}, parts: ${parts.length}`
+    );
 
-    console.log(`Multipart upload completed:`, result);
+    // Sort parts by part number
+    parts.sort((a, b) => a.partNumber - b.partNumber);
+
+    // Combine all parts into a single file
+    const chunks: ArrayBuffer[] = [];
+    let totalSize = 0;
+
+    for (const part of parts) {
+      const partKey = `${key}.part${part.partNumber}`;
+      const partObject = await locals.runtime.env.USER_AVATARS.get(partKey);
+
+      if (!partObject) {
+        throw new Error(`Part ${part.partNumber} not found`);
+      }
+
+      const partBuffer = await partObject.arrayBuffer();
+      chunks.push(partBuffer);
+      totalSize += partBuffer.byteLength;
+    }
+
+    // Combine all chunks
+    const combinedBuffer = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combinedBuffer.set(new Uint8Array(chunk), offset);
+      offset += chunk.byteLength;
+    }
+
+    console.log(`Combined ${chunks.length} parts into ${totalSize} bytes`);
+
+    // Upload the combined file
+    const uploadResult = await locals.runtime.env.USER_AVATARS.put(
+      key,
+      combinedBuffer,
+      {
+        httpMetadata: {
+          contentType: fileType,
+          cacheControl: "public, max-age=31536000",
+        },
+        customMetadata: {
+          userId: session.user.id,
+          filename: fileName,
+          uploadedAt: Date.now().toString(),
+          originalName: fileName,
+          uploadId,
+          partsCount: parts.length.toString(),
+        },
+      }
+    );
+
+    console.log(`Combined file uploaded successfully:`, uploadResult);
+
+    // Clean up individual parts
+    for (const part of parts) {
+      const partKey = `${key}.part${part.partNumber}`;
+      try {
+        await locals.runtime.env.USER_AVATARS.delete(partKey);
+        console.log(`Cleaned up part ${part.partNumber}`);
+      } catch (error) {
+        console.warn(`Failed to clean up part ${part.partNumber}:`, error);
+      }
+    }
 
     // Generate the final URL
     const basePath = import.meta.env.ASSETS_PREFIX;
@@ -72,7 +131,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
         success: true,
         url,
         key,
-        etag: result.etag,
+        etag: uploadResult.etag,
+        size: totalSize,
       }),
       {
         status: 200,

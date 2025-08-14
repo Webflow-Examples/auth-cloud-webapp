@@ -353,7 +353,9 @@ if (!session?.user) {
         console.log(`Using multipart upload for large file: ${selectedFile.size} bytes`);
         response = await uploadFileMultipart(selectedFile, (progress) => {
           // Update progress bar and text for multipart upload
-          updateProgress(progress.percent, `Uploading part ${Math.ceil(progress.percent / 20)}... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)}`);
+          const totalParts = Math.ceil(selectedFile.size / (5 * 1024 * 1024));
+          const currentPart = Math.ceil((progress.percent / 100) * totalParts);
+          updateProgress(progress.percent, `Uploading part ${currentPart}/${totalParts}... ${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)}`);
         });
       } else {
         console.log(`Using streaming upload for smaller file: ${selectedFile.size} bytes`);
