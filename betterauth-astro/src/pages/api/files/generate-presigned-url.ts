@@ -2,6 +2,12 @@ import type { APIRoute } from "astro";
 import { auth } from "../../../utils/auth";
 import { createFileService } from "../../../utils/file-service";
 
+interface GeneratePresignedUrlRequest {
+  fileName: string;
+  fileType: string;
+  fileSize?: number;
+}
+
 export const POST: APIRoute = async ({ request, locals }) => {
   const corsOrigin = locals.runtime.env.BETTER_AUTH_URL;
 
@@ -28,7 +34,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    const body = await request.json();
+    const body = (await request.json()) as GeneratePresignedUrlRequest;
     const { fileName, fileType, fileSize } = body;
 
     if (!fileName || !fileType) {

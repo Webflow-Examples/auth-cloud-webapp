@@ -17,131 +17,133 @@ if (!session?.user) {
 <link href="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.css" rel="stylesheet">
 
 <Layout title="File Manager">
-  <div class="min-h-screen bg-gray-50 py-12 px-4">
+  <div class="min-h-screen bg-base-200 py-12 px-4">
     <div class="max-w-6xl mx-auto">
-      <div class="bg-white rounded-lg shadow-md p-8">
-        <h1 class="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-wf-visual-sans-semibold">
-          File Manager
-        </h1>
-        <p class="text-center text-gray-600 mb-8">
-          Upload and manage your files for use in Webflow sites
-        </p>
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
 
-        <!-- Status Message -->
-        <div id="statusMessage" class="hidden p-4 mb-6 rounded-md"></div>
+          <h1 class="card-title text-3xl font-bold text-center mb-8 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            File Manager
+          </h1>
 
-        <!-- Upload Section -->
-        <div class="mb-8">
-          <h2 class="text-xl font-semibold mb-4">Upload New File</h2>
-          <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 bg-gray-50">
-            <!-- Uppy Dashboard -->
-            <div id="uppy-dashboard"></div>
-            
-            <!-- Uppy Progress Bar -->
-            <div id="uppy-progress" class="mt-4"></div>
-            
-            <!-- Custom Progress Bar -->
-            <div id="customProgress" class="hidden mt-4">
-              <div class="flex items-center justify-between mb-2">
-                <span id="progressText" class="text-sm font-medium text-gray-700">Uploading...</span>
-                <span id="progressPercent" class="text-sm text-gray-500">0%</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2">
-                <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+          <!-- Status Message -->
+          <div id="statusMessage" class="hidden alert mb-6"></div>
 
-        <!-- Files List -->
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold">Your Files</h2>
-            <div class="flex items-center gap-4">
-              <!-- View Mode Toggle -->
-              <div class="flex items-center bg-gray-100 rounded-lg p-1">
-                <button
-                  id="tableViewBtn"
-                  class="px-3 py-1 text-sm rounded-md transition-colors"
-                  onclick="switchViewMode('table')"
-                >
-                  📋 Table
-                </button>
-                <button
-                  id="gridViewBtn"
-                  class="px-3 py-1 text-sm rounded-md transition-colors"
-                  onclick="switchViewMode('grid')"
-                >
-                  🖼️ Grid
-                </button>
+          <!-- Upload Section -->
+          <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Upload New File</h2>
+            <div class="card bg-base-200 border-2 border-dashed border-base-300">
+              <div class="card-body">
+                <!-- Uppy Dashboard -->
+                <div id="uppy-dashboard"></div>
+                
+                <!-- Uppy Progress Bar -->
+                <div id="uppy-progress" class="mt-4"></div>
+                
+                <!-- Custom Progress Bar -->
+                <div id="customProgress" class="hidden mt-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <span id="progressText" class="text-sm font-medium">Uploading...</span>
+                    <span id="progressPercent" class="text-sm opacity-70">0%</span>
+                  </div>
+                  <progress id="progressBar" class="progress progress-primary w-full" value="0" max="100"></progress>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Batch Actions (hidden by default) -->
-          <div id="batchActions" class="hidden mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div class="flex items-center justify-between">
+          <!-- Files List -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-semibold">Your Files</h2>
               <div class="flex items-center gap-4">
-                <span id="selectedCount" class="text-sm font-medium text-blue-800">0 files selected</span>
-                <button
-                  onclick="selectAllFiles()"
-                  class="text-sm text-blue-600 hover:text-blue-800 underline"
-                >
-                  Select All
-                </button>
-                <button
-                  onclick="deselectAllFiles()"
-                  class="text-sm text-blue-600 hover:text-blue-800 underline"
-                >
-                  Deselect All
-                </button>
+                <!-- View Mode Toggle -->
+                <div class="join">
+                  <button
+                    id="tableViewBtn"
+                    class="btn btn-sm join-item"
+                    onclick="switchViewMode('table')"
+                  >
+                    📋 Table
+                  </button>
+                  <button
+                    id="gridViewBtn"
+                    class="btn btn-sm join-item"
+                    onclick="switchViewMode('grid')"
+                  >
+                    🖼️ Grid
+                  </button>
+                </div>
               </div>
-              <button
-                onclick="deleteSelectedFiles()"
-                class="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
-              >
-                🗑️ Delete Selected
-              </button>
+            </div>
+
+            <!-- Batch Actions (hidden by default) -->
+            <div id="batchActions" class="hidden mb-4 card bg-base-200 border border-base-300">
+              <div class="card-body p-4">
+                <div class="flex items-center justify-between w-full">
+                  <div class="flex items-center gap-4">
+                    <span id="selectedCount" class="text-sm font-medium">0 files selected</span>
+                    <button
+                      onclick="selectAllFiles()"
+                      class="btn btn-primary btn-sm"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onclick="deselectAllFiles()"
+                      class="btn btn-neutral btn-sm"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                  <button
+                    onclick="deleteSelectedFiles()"
+                    class="btn btn-error btn-sm"
+                  >
+                    🗑️ Delete Selected
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div id="filesList">
+              <div class="text-center py-12 text-base-content/50">
+                <div class="text-4xl mb-4">📂</div>
+                <p>Loading files...</p>
+                <div class="mt-4">
+                  <span class="loading loading-spinner loading-md text-primary"></span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div id="filesList">
-            <div class="text-center py-12 text-gray-500">
-              <div class="text-4xl mb-4">📂</div>
-              <p>Loading files...</p>
-              <div class="mt-4">
-                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              </div>
-            </div>
+          <!-- Back Button -->
+          <div class="mt-8 text-center">
+            <a
+              href={import.meta.env.BASE_URL + "/"}
+              class="btn btn-neutral"
+            >
+              Back to Home
+            </a>
           </div>
-        </div>
-
-        <!-- Back Button -->
-        <div class="mt-8 text-center">
-          <a
-            href={import.meta.env.BASE_URL + "/"}
-            class="bg-gray-600 text-white px-6 py-3 rounded-md font-medium hover:bg-gray-700 transition-colors inline-block"
-          >
-            Back to Home
-          </a>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Video Player Modal -->
-  <div id="videoModal" class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg max-w-4xl w-full max-h-full overflow-hidden">
-      <div class="flex items-center justify-between p-4 border-b">
-        <h3 id="videoTitle" class="text-lg font-semibold text-gray-900 truncate"></h3>
+  <dialog id="videoModal" class="modal">
+    <div class="modal-box max-w-4xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="videoTitle" class="text-lg font-semibold truncate"></h3>
         <button
           onclick="closeVideoModal()"
-          class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+          class="btn btn-sm btn-circle btn-ghost"
         >
-          ×
+          ✕
         </button>
       </div>
-      <div class="p-4">
+      <div>
         <video
           id="videoPlayer"
           controls
@@ -152,63 +154,13 @@ if (!session?.user) {
         </video>
       </div>
     </div>
-  </div>
+    <form method="dialog" class="modal-backdrop">
+      <button onclick="closeVideoModal()">close</button>
+    </form>
+  </dialog>
 </Layout>
 
-<style>
-  /* Custom Uppy styling to match your design */
-  .uppy-Dashboard {
-    border: none !important;
-    border-radius: 0.5rem !important;
-    box-shadow: none !important;
-  }
 
-  .uppy-Dashboard-inner {
-    border: none !important;
-    border-radius: 0.5rem !important;
-  }
-
-  .uppy-Dashboard-dropzone {
-    border: 2px dashed #d1d5db !important;
-    border-radius: 0.5rem !important;
-    background-color: #f9fafb !important;
-  }
-
-  .uppy-Dashboard-dropzone.is-dragenter {
-    border-color: #3b82f6 !important;
-    background-color: #eff6ff !important;
-  }
-
-  .uppy-Dashboard-AddFiles {
-    background-color: transparent !important;
-    border: none !important;
-    color: #6b7280 !important;
-  }
-
-  .uppy-Dashboard-AddFiles:hover {
-    background-color: transparent !important;
-    color: #374151 !important;
-  }
-
-  .uppy-ProgressBar {
-    border-radius: 0.5rem !important;
-    background-color: #e5e7eb !important;
-  }
-
-  .uppy-ProgressBar-bar {
-    background-color: #3b82f6 !important;
-    border-radius: 0.5rem !important;
-  }
-
-  .uppy-Dashboard-Item {
-    border-radius: 0.5rem !important;
-    border: 1px solid #e5e7eb !important;
-  }
-
-  .uppy-Dashboard-Item-preview {
-    border-radius: 0.5rem !important;
-  }
-</style>
 
 <script>
   import { uppyR2S3Uploader } from '../utils/uppy-r2-s3';
@@ -280,7 +232,7 @@ if (!session?.user) {
       progressPercent.textContent = `${Math.round(percent)}%`;
     }
     if (progressBar) {
-      progressBar.style.width = `${percent}%`;
+      progressBar.setAttribute('value', percent.toString());
     }
     if (progressText && text) {
       progressText.textContent = text;
@@ -297,12 +249,12 @@ if (!session?.user) {
     if (!statusMessage) return;
     
     statusMessage.textContent = text;
-    statusMessage.className = `p-4 mb-6 rounded-md ${
+    statusMessage.className = `alert ${
       type === 'success'
-        ? 'bg-green-100 text-green-700 border border-green-200'
+        ? 'alert-success'
         : type === 'error'
-        ? 'bg-red-100 text-red-700 border border-red-200'
-        : 'bg-blue-100 text-blue-700 border border-blue-200'
+        ? 'alert-error'
+        : 'alert-info'
     }`;
     statusMessage.classList.remove('hidden');
     
@@ -344,29 +296,29 @@ if (!session?.user) {
 
   function renderTableView(files: any[]) {
     const filesHtml = files.map(file => `
-      <tr class="border-b border-gray-200 hover:bg-gray-50">
-        <td class="px-4 py-3">
+      <tr class="hover">
+        <td class="p-4">
           <input
             type="checkbox"
-            class="file-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            class="checkbox checkbox-primary file-checkbox"
             data-key="${file.key}"
             ${selectedFiles.has(file.key) ? 'checked' : ''}
             onchange="toggleFileSelection('${file.key}')"
           />
         </td>
-        <td class="px-4 py-3">
+        <td class="p-4">
           <div class="flex items-center gap-3">
             <div class="text-2xl">${getFileIcon(file.contentType)}</div>
             <div>
-              <div class="font-medium text-gray-900 truncate max-w-xs" title="${file.filename}">
+              <div class="font-medium truncate max-w-xs" title="${file.filename}">
                 ${file.filename}
               </div>
-              <div class="text-sm text-gray-500">${getFileTypeCategory(file.contentType)}</div>
+              <div class="text-sm opacity-70">${getFileTypeCategory(file.contentType)}</div>
             </div>
           </div>
         </td>
-        <td class="px-4 py-3 text-sm text-gray-600">${formatFileSize(file.fileSize)}</td>
-        <td class="px-4 py-3 text-sm text-gray-600">
+        <td class="p-4 text-sm opacity-70">${formatFileSize(file.fileSize)}</td>
+        <td class="p-4 text-sm opacity-70">
           ${(() => {
             try {
               const date = new Date(file.uploadedAt);
@@ -378,24 +330,24 @@ if (!session?.user) {
             }
           })()}
         </td>
-        <td class="px-4 py-3">
+        <td class="p-4">
           <div class="flex gap-2">
             <button
               onclick="openFile('${file.url}', '${file.filename}', '${file.contentType}')"
-              class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              class="btn btn-primary btn-sm"
             >
               ${file.contentType.startsWith('video/') ? 'Play' : 'Open'}
             </button>
             <button
               onclick="copyToClipboard('${file.url}')"
-              class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              class="btn btn-outline btn-sm"
               id="copy-${file.key}"
             >
               Copy URL
             </button>
             <button
               onclick="handleDelete('${file.key}', '${file.filename}')"
-              class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+              class="btn btn-error btn-sm"
               id="delete-${file.key}"
             >
               Delete
@@ -407,23 +359,23 @@ if (!session?.user) {
 
     filesList.innerHTML = `
       <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-gray-50">
+        <table class="table table-zebra">
+          <thead>
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th>
                 <input
                   type="checkbox"
-                  class="select-all-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  class="checkbox checkbox-primary select-all-checkbox"
                   onchange="toggleSelectAll(this)"
                 />
               </th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th>File</th>
+              <th>Size</th>
+              <th>Uploaded</th>
+              <th>Actions</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody>
             ${filesHtml}
           </tbody>
         </table>
@@ -433,62 +385,64 @@ if (!session?.user) {
 
   function renderGridView(files: any[]) {
     const filesHtml = files.map(file => `
-      <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-        <div class="flex items-start justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <input
-              type="checkbox"
-              class="file-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              data-key="${file.key}"
-              ${selectedFiles.has(file.key) ? 'checked' : ''}
-              onchange="toggleFileSelection('${file.key}')"
-            />
-            <div class="text-2xl">${getFileIcon(file.contentType)}</div>
+      <div class="card bg-base-100 shadow-md hover:shadow-lg transition-shadow">
+        <div class="card-body">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-primary file-checkbox"
+                data-key="${file.key}"
+                ${selectedFiles.has(file.key) ? 'checked' : ''}
+                onchange="toggleFileSelection('${file.key}')"
+              />
+              <div class="text-2xl">${getFileIcon(file.contentType)}</div>
+            </div>
+            <button
+              onclick="handleDelete('${file.key}', '${file.filename}')"
+              class="btn btn-ghost btn-sm text-error"
+              id="delete-${file.key}"
+            >
+              Delete
+            </button>
           </div>
-          <button
-            onclick="handleDelete('${file.key}', '${file.filename}')"
-            class="text-red-500 hover:text-red-700 text-sm"
-            id="delete-${file.key}"
-          >
-            Delete
-          </button>
-        </div>
-        
-        <h3 class="font-medium text-gray-900 mb-1 truncate" title="${file.filename}">
-          ${file.filename}
-        </h3>
-        
-        <p class="text-sm text-gray-600 mb-2">
-          ${formatFileSize(file.fileSize)} • ${getFileTypeCategory(file.contentType)}
-        </p>
-        
-        <p class="text-xs text-gray-500 mb-3">
-          Uploaded ${(() => {
-            try {
-              const date = new Date(file.uploadedAt);
-              return isNaN(date.getTime()) 
-                ? 'Recently' 
-                : `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
-            } catch (e) {
-              return 'Recently';
-            }
-          })()}
-        </p>
-        
-        <div class="flex gap-2">
-          <button
-            onclick="openFile('${file.url}', '${file.filename}', '${file.contentType}')"
-            class="flex-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            ${file.contentType.startsWith('video/') ? 'Play' : 'Open'}
-          </button>
-          <button
-            onclick="copyToClipboard('${file.url}')"
-            class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-            id="copy-${file.key}"
-          >
-            Copy URL
-          </button>
+          
+          <h3 class="card-title text-base mb-1 truncate" title="${file.filename}">
+            ${file.filename}
+          </h3>
+          
+          <p class="text-sm opacity-70 mb-2">
+            ${formatFileSize(file.fileSize)} • ${getFileTypeCategory(file.contentType)}
+          </p>
+          
+          <p class="text-xs opacity-50 mb-3">
+            Uploaded ${(() => {
+              try {
+                const date = new Date(file.uploadedAt);
+                return isNaN(date.getTime()) 
+                  ? 'Recently' 
+                  : `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+              } catch (e) {
+                return 'Recently';
+              }
+            })()}
+          </p>
+          
+          <div class="card-actions justify-end">
+            <button
+              onclick="openFile('${file.url}', '${file.filename}', '${file.contentType}')"
+              class="btn btn-primary btn-sm"
+            >
+              ${file.contentType.startsWith('video/') ? 'Play' : 'Open'}
+            </button>
+            <button
+              onclick="copyToClipboard('${file.url}')"
+              class="btn btn-outline btn-sm"
+              id="copy-${file.key}"
+            >
+              Copy URL
+            </button>
+          </div>
         </div>
       </div>
     `).join('');
@@ -504,7 +458,7 @@ if (!session?.user) {
     if (!filesList) return;
     
     filesList.innerHTML = `
-      <div class="text-center py-12 text-gray-500">
+      <div class="text-center py-12 opacity-50">
         <div class="text-4xl mb-4">📂</div>
         <p>No files uploaded yet</p>
         <p class="text-sm">Upload your first file to get started</p>
@@ -602,10 +556,10 @@ if (!session?.user) {
       const button = document.getElementById(`copy-${url.split('/').pop()}`);
       if (button) {
         button.textContent = 'Copied!';
-        button.className = 'px-3 py-1 text-sm bg-green-600 text-white rounded';
+        button.className = 'btn btn-success btn-sm';
         setTimeout(() => {
           button.textContent = 'Copy URL';
-          button.className = 'px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300';
+          button.className = 'btn btn-outline btn-sm';
         }, 2000);
       }
     } catch (error) {
@@ -630,7 +584,7 @@ if (!session?.user) {
     videoTitle.textContent = title;
     
     // Show modal
-    videoModal.classList.remove('hidden');
+    (videoModal as HTMLDialogElement).showModal();
     
     // Load video metadata
     videoPlayer.load();
@@ -644,7 +598,7 @@ if (!session?.user) {
     videoPlayer.src = '';
     
     // Hide modal
-    videoModal.classList.add('hidden');
+    (videoModal as HTMLDialogElement).close();
   }
 
   // Close modal when clicking outside
@@ -656,7 +610,7 @@ if (!session?.user) {
 
   // Close modal with Escape key
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !videoModal?.classList.contains('hidden')) {
+    if (e.key === 'Escape' && (videoModal as HTMLDialogElement)?.open) {
       closeVideoModal();
     }
   });
@@ -667,15 +621,15 @@ if (!session?.user) {
     
     // Update button styles
     if (mode === 'table') {
-      tableViewBtn?.classList.add('bg-blue-600', 'text-white');
-      tableViewBtn?.classList.remove('text-gray-600');
-      gridViewBtn?.classList.remove('bg-blue-600', 'text-white');
-      gridViewBtn?.classList.add('text-gray-600');
+      tableViewBtn?.classList.add('btn-primary');
+      tableViewBtn?.classList.remove('btn-outline');
+      gridViewBtn?.classList.remove('btn-primary');
+      gridViewBtn?.classList.add('btn-outline');
     } else {
-      gridViewBtn?.classList.add('bg-blue-600', 'text-white');
-      gridViewBtn?.classList.remove('text-gray-600');
-      tableViewBtn?.classList.remove('bg-blue-600', 'text-white');
-      tableViewBtn?.classList.add('text-gray-600');
+      gridViewBtn?.classList.add('btn-primary');
+      gridViewBtn?.classList.remove('btn-outline');
+      tableViewBtn?.classList.remove('btn-primary');
+      tableViewBtn?.classList.add('btn-outline');
     }
     
     // Re-render files with new view mode
@@ -758,6 +712,16 @@ if (!session?.user) {
     }
   }
 
+  // Theme switching function
+  function setTheme(theme: string) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }
+
+  // Load saved theme on page load
+  const savedTheme = localStorage.getItem('theme') || 'dim';
+  setTheme(savedTheme);
+
   // Initialize view mode
   switchViewMode('grid');
 
@@ -772,4 +736,5 @@ if (!session?.user) {
   (window as any).selectAllFiles = selectAllFiles;
   (window as any).deselectAllFiles = deselectAllFiles;
   (window as any).deleteSelectedFiles = deleteSelectedFiles;
+  (window as any).setTheme = setTheme;
 </script>

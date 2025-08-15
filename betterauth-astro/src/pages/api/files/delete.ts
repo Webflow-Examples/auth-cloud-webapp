@@ -2,6 +2,10 @@ import type { APIRoute } from "astro";
 import { auth } from "../../../utils/auth";
 import { createFileService } from "../../../utils/file-service";
 
+interface DeleteFileRequest {
+  key: string;
+}
+
 export const DELETE: APIRoute = async ({ request, locals }) => {
   try {
     // Get the authenticated user
@@ -18,7 +22,7 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     }
 
     const userId = session.user.id;
-    const { key } = await request.json();
+    const { key } = (await request.json()) as DeleteFileRequest;
 
     if (!key) {
       return new Response(
