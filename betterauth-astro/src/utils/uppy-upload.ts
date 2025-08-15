@@ -1,9 +1,7 @@
 import Uppy from "@uppy/core";
 import XHRUpload from "@uppy/xhr-upload";
-import Dashboard from "@uppy/dashboard";
-import ProgressBar from "@uppy/progress-bar";
 
-interface UppyUploadResponse {
+export interface UppyUploadResponse {
   success: boolean;
   url?: string;
   key?: string;
@@ -13,7 +11,7 @@ interface UppyUploadResponse {
   error?: string;
 }
 
-interface UppyUploadOptions {
+export interface UppyUploadOptions {
   onProgress?: (progress: {
     loaded: number;
     total: number;
@@ -39,75 +37,137 @@ export class UppyFileUploader {
       autoProceed: false,
     });
 
-    // Configure XHR upload with direct endpoint (requires session cookies)
-    this.uppy.use(XHRUpload, {
-      endpoint: `${this.baseUrl}/api/files/upload`,
-      method: "POST",
-      formData: true,
-      fieldName: "file",
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-      },
-      withCredentials: true,
-      limit: 3, // Upload 3 files at a time
-      timeout: 60000, // 60 seconds timeout
-    });
+    // Don't configure XHRUpload here - we'll handle uploads manually
   }
 
   /**
-   * Upload a single file using Uppy
+   * Upload a single file using signed URL approach
    */
   async uploadFile(
     file: File,
     options: UppyUploadOptions = {}
   ): Promise<UppyUploadResponse> {
-    return new Promise((resolve, reject) => {
-      // Set up progress tracking
-      if (options.onProgress) {
-        this.uppy.on("upload-progress", (file, progress) => {
-          const total = progress.bytesTotal || 0;
-          const loaded = progress.bytesUploaded || 0;
-          options.onProgress!({
-            loaded,
-            total,
-            percent: total > 0 ? (loaded / total) * 100 : 0,
-            speed: 0, // Uppy doesn't provide speed in this event
-            eta: 0, // Uppy doesn't provide ETA in this event
-          });
-        });
-      }
+    return new Promise(async (resolve, reject) => {
+      try {
+        console.log(
+          `Starting signed URL upload for file: ${file.name}, size: ${file.size} bytes`
+        );
 
-      // Handle upload success
-      this.uppy.on("upload-success", (file, response) => {
-        const data = response.body as any;
-        if (data.success && file) {
-          resolve({
-            success: true,
-            url: data.url,
-            key: data.key,
-            filename: file.name,
-            fileSize: file.size || 0,
-            contentType: file.type,
-          });
-        } else {
-          reject(new Error(data.error || "Upload failed"));
+        // Step 1: Generate signed upload URL
+        const generateUrlResponse = await fetch(
+          `${this.baseUrl}/api/generate-file-upload-url`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+            }),
+          }
+        );
+
+        if (!generateUrlResponse.ok) {
+          const errorText = await generateUrlResponse.text();
+          console.error("Generate URL error:", errorText);
+          throw new Error(
+            `Failed to generate upload URL: ${generateUrlResponse.status}`
+          );
         }
-      });
 
-      // Handle upload errors
-      this.uppy.on("upload-error", (file, error) => {
-        reject(new Error(error.message || "Upload failed"));
-      });
+        const generateData = (await generateUrlResponse.json()) as {
+          success: boolean;
+          uploadUrl?: string;
+          key?: string;
+          error?: string;
+        };
 
-      // Add the file and start upload
-      this.uppy.addFile({
-        name: file.name,
-        type: file.type,
-        data: file,
-        size: file.size,
-      });
+        if (!generateData.success) {
+          throw new Error(
+            generateData.error || "Failed to generate upload URL"
+          );
+        }
 
-      this.uppy.upload();
+        console.log("Generated signed URL:", generateData.uploadUrl);
+
+        // Step 2: Upload file using the signed URL with progress tracking
+        const xhr = new XMLHttpRequest();
+        const startTime = Date.now();
+        let lastLoaded = 0;
+        let lastTime = startTime;
+
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable && options.onProgress) {
+            const percent = (e.loaded / e.total) * 100;
+            const currentTime = Date.now();
+            const timeDiff = currentTime - lastTime;
+            const bytesDiff = e.loaded - lastLoaded;
+            const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0; // bytes per millisecond
+            const remainingBytes = e.total - e.loaded;
+            const eta = speed > 0 ? remainingBytes / speed : 0; // milliseconds
+
+            options.onProgress!({
+              loaded: e.loaded,
+              total: e.total,
+              percent,
+              speed: speed * 1000, // convert to bytes per second
+              eta: eta / 1000, // convert to seconds
+            });
+
+            lastLoaded = e.loaded;
+            lastTime = currentTime;
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          console.log(`Upload response status: ${xhr.status}`);
+          console.log(`Upload response text:`, xhr.responseText);
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText) as UppyUploadResponse;
+              console.log(`Parsed upload response:`, data);
+              resolve(data);
+            } catch (error) {
+              console.error(`Failed to parse upload response:`, error);
+              console.error(`Raw response:`, xhr.responseText);
+              resolve({
+                success: false,
+                error: "Invalid response from server",
+              });
+            }
+          } else {
+            console.error(
+              `Upload failed with status ${xhr.status}:`,
+              xhr.responseText
+            );
+            reject(
+              new Error(`Upload failed: ${xhr.status} - ${xhr.responseText}`)
+            );
+          }
+        });
+
+        xhr.addEventListener("error", () => {
+          reject(new Error("Upload failed due to network error"));
+        });
+
+        xhr.addEventListener("abort", () => {
+          reject(new Error("Upload was cancelled"));
+        });
+
+        // Prepare form data
+        const formData = new FormData();
+        formData.append("file", file);
+
+        // Start upload to signed URL
+        xhr.open("POST", generateData.uploadUrl!);
+        xhr.send(formData);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -141,21 +201,7 @@ export class UppyFileUploader {
   getUppy(): Uppy {
     return this.uppy;
   }
-
-  /**
-   * Reset Uppy state
-   */
-  reset(): void {
-    this.uppy.cancelAll();
-  }
-
-  /**
-   * Destroy Uppy instance
-   */
-  destroy(): void {
-    this.uppy.cancelAll();
-  }
 }
 
-// Create a singleton instance
+// Export a singleton instance
 export const uppyUploader = new UppyFileUploader();

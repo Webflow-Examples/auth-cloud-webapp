@@ -30,6 +30,41 @@
     hideAfterFinish: false,
   });
 
+  // Custom upload handler for signed URL approach
+  const uppy = uppyUploader.getUppy();
+  
+  uppy.on('file-added', async (file: any) => {
+    try {
+      console.log('Starting upload...');
+      
+      const result = await uppyUploader.uploadFile(file.data, {
+        onProgress: (progress) => {
+          console.log(`Upload progress: ${progress.percent.toFixed(1)}%`);
+        },
+      });
+
+      if (result.success) {
+        console.log('Upload successful:', result.url);
+        // Remove the file from Uppy's state
+        uppy.removeFile(file.id);
+      } else {
+        console.error('Upload failed:', result.error);
+        // Remove the file from Uppy's state
+        uppy.removeFile(file.id);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      // Remove the file from Uppy's state
+      uppy.removeFile(file.id);
+    }
+  });
+
+  // Prevent automatic upload
+  uppy.on('upload', (data) => {
+    // Cancel the automatic upload since we handle it manually
+    uppy.cancelAll();
+  });
+
   // Example usage
   (window as any).uploadFile = async (file: File) => {
     try {
