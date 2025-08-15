@@ -21,7 +21,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers":
+              "Content-Type, Authorization, X-Requested-With",
             "Access-Control-Allow-Credentials": "true",
           },
         }
@@ -44,7 +45,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers":
+              "Content-Type, Authorization, X-Requested-With",
             "Access-Control-Allow-Credentials": "true",
           },
         }
@@ -65,7 +67,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers":
+              "Content-Type, Authorization, X-Requested-With",
             "Access-Control-Allow-Credentials": "true",
           },
         }
@@ -103,7 +106,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": corsOrigin,
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers":
+              "Content-Type, Authorization, X-Requested-With",
             "Access-Control-Allow-Credentials": "true",
           },
         }
@@ -127,7 +131,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": corsOrigin,
           "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Requested-With",
           "Access-Control-Allow-Credentials": "true",
         },
       }
@@ -145,7 +150,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": corsOrigin,
           "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Requested-With",
           "Access-Control-Allow-Credentials": "true",
         },
       }
@@ -162,7 +168,8 @@ export const OPTIONS: APIRoute = async ({ locals }) => {
     headers: {
       "Access-Control-Allow-Origin": corsOrigin,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-Requested-With",
       "Access-Control-Allow-Credentials": "true",
     },
   });
