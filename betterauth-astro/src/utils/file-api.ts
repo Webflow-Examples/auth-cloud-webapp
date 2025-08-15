@@ -359,13 +359,8 @@ export async function uploadFileMultipart(
     // Upload parts in batches to avoid timeout
     const batchSize = 15; // Generate 15 URLs per request
     const concurrencyLimit = 3; // Upload 3 parts at a time
-    const uploadPromises: Array<
-      Promise<{ partNumber: number; etag: string; size: number }>
-    > = [];
-    const partsMap = new Map<
-      number,
-      { partNumber: number; etag: string; size: number }
-    >();
+    const allParts: Array<{ partNumber: number; etag: string; size: number }> =
+      [];
 
     for (
       let batchStart = 1;
@@ -406,7 +401,11 @@ export async function uploadFileMultipart(
         throw new Error("Failed to get batch URLs");
       }
 
-      // Upload parts in this batch
+      // Upload parts in this batch with concurrency control
+      const batchPromises: Array<
+        Promise<{ partNumber: number; etag: string; size: number }>
+      > = [];
+
       for (const partInfo of batchUrlsData.partUrls) {
         const partNumber = partInfo.partNumber;
         const start = (partNumber - 1) * partSize;
@@ -440,37 +439,30 @@ export async function uploadFileMultipart(
           };
         })();
 
-        uploadPromises.push(uploadPromise);
+        batchPromises.push(uploadPromise);
+      }
 
-        // Limit concurrency
-        if (uploadPromises.length >= concurrencyLimit) {
-          const completedPart = await Promise.race(uploadPromises);
-          partsMap.set(completedPart.partNumber, completedPart);
-          uploadPromises.splice(uploadPromises.indexOf(uploadPromise), 1);
+      // Wait for all parts in this batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      allParts.push(...batchResults);
 
-          // Update progress
-          if (onProgress) {
-            const loaded = partsMap.size * partSize;
-            const percent = (loaded / file.size) * 100;
-            onProgress({
-              loaded: Math.min(loaded, file.size),
-              total: file.size,
-              percent: Math.min(percent, 100),
-              speed: 0,
-              eta: 0,
-            });
-          }
-        }
+      // Update progress after each batch
+      if (onProgress) {
+        const loaded = allParts.length * partSize;
+        const percent = (loaded / file.size) * 100;
+        onProgress({
+          loaded: Math.min(loaded, file.size),
+          total: file.size,
+          percent: Math.min(percent, 100),
+          speed: 0,
+          eta: 0,
+        });
       }
     }
 
-    // Wait for remaining uploads
-    const remainingParts = await Promise.all(uploadPromises);
-    remainingParts.forEach((part) => partsMap.set(part.partNumber, part));
-
     // Final progress update for all parts uploaded
     if (onProgress) {
-      const totalUploaded = partsMap.size * partSize;
+      const totalUploaded = allParts.length * partSize;
       const percent = (totalUploaded / file.size) * 100;
       onProgress({
         loaded: Math.min(totalUploaded, file.size),
@@ -481,10 +473,22 @@ export async function uploadFileMultipart(
       });
     }
 
-    // Convert map to array and sort by part number
-    const parts = Array.from(partsMap.values()).sort(
-      (a, b) => a.partNumber - b.partNumber
+    // Sort parts by part number
+    const parts = allParts.sort((a, b) => a.partNumber - b.partNumber);
+
+    console.log(`Multipart upload summary:`);
+    console.log(`- Total parts expected: ${totalParts}`);
+    console.log(`- Parts actually uploaded: ${parts.length}`);
+    console.log(
+      `- Parts array:`,
+      parts.map((p) => ({ partNumber: p.partNumber, size: p.size }))
     );
+
+    if (parts.length !== totalParts) {
+      throw new Error(
+        `Expected ${totalParts} parts but only uploaded ${parts.length} parts`
+      );
+    }
 
     // Step 3: Complete multipart upload
     if (onProgress) {
