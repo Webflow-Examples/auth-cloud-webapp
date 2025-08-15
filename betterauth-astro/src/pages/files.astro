@@ -39,6 +39,17 @@ if (!session?.user) {
             
             <!-- Uppy Progress Bar -->
             <div id="uppy-progress" class="mt-4"></div>
+            
+            <!-- Custom Progress Bar -->
+            <div id="customProgress" class="hidden mt-4">
+              <div class="flex items-center justify-between mb-2">
+                <span id="progressText" class="text-sm font-medium text-gray-700">Uploading...</span>
+                <span id="progressPercent" class="text-sm text-gray-500">0%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -221,6 +232,10 @@ if (!session?.user) {
   const videoModal = document.getElementById('videoModal') as HTMLElement;
   const videoPlayer = document.getElementById('videoPlayer') as HTMLVideoElement;
   const videoTitle = document.getElementById('videoTitle') as HTMLElement;
+  const customProgress = document.getElementById('customProgress') as HTMLElement;
+  const progressText = document.getElementById('progressText') as HTMLElement;
+  const progressPercent = document.getElementById('progressPercent') as HTMLElement;
+  const progressBar = document.getElementById('progressBar') as HTMLElement;
 
   // State management
   let currentFiles: any[] = [];
@@ -246,6 +261,31 @@ if (!session?.user) {
     target: '#uppy-progress',
     hideAfterFinish: true, // Hide after finish to avoid duplicate
   });
+
+  // Progress functions
+  function showProgress() {
+    if (customProgress) {
+      customProgress.classList.remove('hidden');
+    }
+  }
+
+  function hideProgress() {
+    if (customProgress) {
+      customProgress.classList.add('hidden');
+    }
+  }
+
+  function updateProgress(percent: number, text?: string) {
+    if (progressPercent) {
+      progressPercent.textContent = `${Math.round(percent)}%`;
+    }
+    if (progressBar) {
+      progressBar.style.width = `${percent}%`;
+    }
+    if (progressText && text) {
+      progressText.textContent = text;
+    }
+  }
 
   // Initialize
   loadFiles();
@@ -476,6 +516,8 @@ if (!session?.user) {
   uppy.on('file-added', async (file: any) => {
     try {
       showStatus('Starting upload...', 'info');
+      showProgress();
+      updateProgress(0, `Preparing to upload ${file.data.name}...`);
       
       let result;
       
@@ -483,30 +525,40 @@ if (!session?.user) {
       if (file.data.size > 100 * 1024 * 1024) {
         // Large file - use multipart upload
         console.log('Large file detected, using multipart upload');
+        updateProgress(5, `Large file detected, using multipart upload for ${file.data.name}...`);
         const { uploadFileMultipart } = await import('../utils/file-api.js');
         result = await uploadFileMultipart(file.data, (progress: any) => {
           console.log(`Multipart upload progress: ${progress.percent.toFixed(1)}%`);
+          updateProgress(progress.percent, `Uploading ${file.data.name}...`);
         });
       } else {
         // Small file - use regular upload
+        updateProgress(5, `Uploading ${file.data.name}...`);
         result = await uppyR2S3Uploader.uploadFile(file.data, {
           onProgress: (progress) => {
             console.log(`Upload progress: ${progress.percent.toFixed(1)}%`);
+            updateProgress(progress.percent, `Uploading ${file.data.name}...`);
           },
         });
       }
 
       if (result.success) {
-        showStatus('File uploaded successfully!', 'success');
+        updateProgress(100, `Upload complete!`);
+        setTimeout(() => {
+          hideProgress();
+          showStatus('File uploaded successfully!', 'success');
+        }, 1000);
         loadFiles(); // Refresh file list
         // Remove the file from Uppy's state
         uppy.removeFile(file.id);
       } else {
+        hideProgress();
         showStatus(`Upload failed: ${result.error}`, 'error');
         // Remove the file from Uppy's state
         uppy.removeFile(file.id);
       }
     } catch (error) {
+      hideProgress();
       showStatus(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
       // Remove the file from Uppy's state
       uppy.removeFile(file.id);
