@@ -39,7 +39,7 @@ export class UppyFileUploader {
       autoProceed: false,
     });
 
-    // Configure XHR upload with multipart support
+    // Configure XHR upload with direct endpoint (requires session cookies)
     this.uppy.use(XHRUpload, {
       endpoint: `${this.baseUrl}/api/files/upload`,
       method: "POST",
