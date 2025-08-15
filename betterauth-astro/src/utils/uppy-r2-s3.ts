@@ -29,6 +29,7 @@ export class UppyR2S3Uploader {
 
   constructor() {
     this.baseUrl = import.meta.env.BASE_URL as string;
+    console.log("UppyR2S3Uploader baseUrl:", this.baseUrl);
 
     this.uppy = new Uppy({
       restrictions: {

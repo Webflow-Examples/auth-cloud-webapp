@@ -27,6 +27,7 @@ export class UppyFileUploader {
 
   constructor() {
     this.baseUrl = import.meta.env.BASE_URL as string;
+    console.log("UppyFileUploader baseUrl:", this.baseUrl);
 
     this.uppy = new Uppy({
       restrictions: {
