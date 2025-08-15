@@ -118,10 +118,24 @@ export async function uploadFile(file: File): Promise<FileUploadResponse> {
       uploadUrl?: string;
       key?: string;
       error?: string;
+      multipartRequired?: boolean;
+      message?: string;
     };
 
     if (!generateData.success) {
       throw new Error(generateData.error || "Failed to generate upload URL");
+    }
+
+    // Check if multipart upload is required
+    if (generateData.multipartRequired) {
+      console.log("Multipart upload required:", generateData.message);
+      throw new Error(
+        "Large file detected. Please use multipart upload for files larger than 100MB."
+      );
+    }
+
+    if (!generateData.uploadUrl) {
+      throw new Error("No upload URL provided");
     }
 
     // Step 2: Upload file using the signed URL
@@ -190,10 +204,24 @@ export function uploadFileWithProgress(
         uploadUrl?: string;
         key?: string;
         error?: string;
+        multipartRequired?: boolean;
+        message?: string;
       };
 
       if (!generateData.success) {
         throw new Error(generateData.error || "Failed to generate upload URL");
+      }
+
+      // Check if multipart upload is required
+      if (generateData.multipartRequired) {
+        console.log("Multipart upload required:", generateData.message);
+        throw new Error(
+          "Large file detected. Please use multipart upload for files larger than 100MB."
+        );
+      }
+
+      if (!generateData.uploadUrl) {
+        throw new Error("No upload URL provided");
       }
 
       // Step 2: Upload file using XMLHttpRequest for progress tracking

@@ -22,10 +22,16 @@ export interface UppyUploadOptions {
 }
 
 export class UppyFileUploader {
-  private uppy: Uppy;
-  private baseUrl: string;
+  private uppy: Uppy | null = null;
+  private baseUrl: string | null = null;
 
   constructor() {
+    // Don't initialize here - wait until first use
+  }
+
+  private initialize() {
+    if (this.uppy) return; // Already initialized
+
     this.baseUrl = import.meta.env.BASE_URL as string;
     console.log("UppyFileUploader baseUrl:", this.baseUrl);
 
@@ -36,9 +42,17 @@ export class UppyFileUploader {
         allowedFileTypes: null, // Allow all file types
       },
       autoProceed: false,
+      allowMultipleUploadBatches: false,
+      allowMultipleUploads: false,
+      logger: {
+        debug: console.log,
+        warn: console.warn,
+        error: console.error,
+      },
     });
 
-    // Don't configure XHRUpload here - we'll handle uploads manually
+    // Don't configure any upload plugins - we'll handle uploads manually with signed URLs
+    // This prevents Uppy from trying to process uploads automatically
   }
 
   /**
@@ -48,6 +62,8 @@ export class UppyFileUploader {
     file: File,
     options: UppyUploadOptions = {}
   ): Promise<UppyUploadResponse> {
+    this.initialize(); // Ensure initialized
+
     return new Promise(async (resolve, reject) => {
       try {
         console.log(
@@ -84,12 +100,26 @@ export class UppyFileUploader {
           uploadUrl?: string;
           key?: string;
           error?: string;
+          multipartRequired?: boolean;
+          message?: string;
         };
 
         if (!generateData.success) {
           throw new Error(
             generateData.error || "Failed to generate upload URL"
           );
+        }
+
+        // Check if multipart upload is required
+        if (generateData.multipartRequired) {
+          console.log("Multipart upload required:", generateData.message);
+          throw new Error(
+            "Large file detected. Please use multipart upload for files larger than 100MB."
+          );
+        }
+
+        if (!generateData.uploadUrl) {
+          throw new Error("No upload URL provided");
         }
 
         console.log("Generated signed URL:", generateData.uploadUrl);
@@ -200,7 +230,8 @@ export class UppyFileUploader {
    * Get Uppy instance for custom usage
    */
   getUppy(): Uppy {
-    return this.uppy;
+    this.initialize(); // Ensure initialized
+    return this.uppy!;
   }
 }
 

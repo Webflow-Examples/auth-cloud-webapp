@@ -37,11 +37,24 @@
     try {
       console.log('Starting upload...');
       
-      const result = await uppyUploader.uploadFile(file.data, {
-        onProgress: (progress) => {
-          console.log(`Upload progress: ${progress.percent.toFixed(1)}%`);
-        },
-      });
+      let result;
+      
+      // Check file size and choose upload method
+      if (file.data.size > 100 * 1024 * 1024) {
+        // Large file - use multipart upload
+        console.log('Large file detected, using multipart upload');
+        const { uploadFileMultipart } = await import('../utils/file-api.js');
+        result = await uploadFileMultipart(file.data, (progress: any) => {
+          console.log(`Multipart upload progress: ${progress.percent.toFixed(1)}%`);
+        });
+      } else {
+        // Small file - use regular upload
+        result = await uppyUploader.uploadFile(file.data, {
+          onProgress: (progress) => {
+            console.log(`Upload progress: ${progress.percent.toFixed(1)}%`);
+          },
+        });
+      }
 
       if (result.success) {
         console.log('Upload successful:', result.url);
@@ -59,10 +72,17 @@
     }
   });
 
-  // Prevent automatic upload
-  uppy.on('upload', (data) => {
-    // Cancel the automatic upload since we handle it manually
-    uppy.cancelAll();
+  // Handle upload event to prevent errors
+  uppy.on('upload', (data: any) => {
+    console.log('Uppy upload event triggered - handling manually');
+    // Since we handle uploads in file-added, we just need to prevent errors
+    // The upload will be handled by our custom file-added handler
+  });
+
+  // Also handle upload-error to prevent unhandled errors
+  uppy.on('upload-error', (file: any, error: any, response: any) => {
+    console.log('Uppy upload error:', error);
+    // Don't do anything - we handle errors in our custom upload process
   });
 
   // Example usage
