@@ -44,7 +44,56 @@ if (!session?.user) {
 
         <!-- Files List -->
         <div>
-          <h2 class="text-xl font-semibold mb-4">Your Files</h2>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold">Your Files</h2>
+            <div class="flex items-center gap-4">
+              <!-- View Mode Toggle -->
+              <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  id="tableViewBtn"
+                  class="px-3 py-1 text-sm rounded-md transition-colors"
+                  onclick="switchViewMode('table')"
+                >
+                  📋 Table
+                </button>
+                <button
+                  id="gridViewBtn"
+                  class="px-3 py-1 text-sm rounded-md transition-colors"
+                  onclick="switchViewMode('grid')"
+                >
+                  🖼️ Grid
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Batch Actions (hidden by default) -->
+          <div id="batchActions" class="hidden mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-4">
+                <span id="selectedCount" class="text-sm font-medium text-blue-800">0 files selected</span>
+                <button
+                  onclick="selectAllFiles()"
+                  class="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  Select All
+                </button>
+                <button
+                  onclick="deselectAllFiles()"
+                  class="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  Deselect All
+                </button>
+              </div>
+              <button
+                onclick="deleteSelectedFiles()"
+                class="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+              >
+                🗑️ Delete Selected
+              </button>
+            </div>
+          </div>
+
           <div id="filesList">
             <div class="text-center py-12 text-gray-500">
               <div class="text-4xl mb-4">📂</div>
@@ -65,6 +114,31 @@ if (!session?.user) {
             Back to Home
           </a>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Player Modal -->
+  <div id="videoModal" class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg max-w-4xl w-full max-h-full overflow-hidden">
+      <div class="flex items-center justify-between p-4 border-b">
+        <h3 id="videoTitle" class="text-lg font-semibold text-gray-900 truncate"></h3>
+        <button
+          onclick="closeVideoModal()"
+          class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+        >
+          ×
+        </button>
+      </div>
+      <div class="p-4">
+        <video
+          id="videoPlayer"
+          controls
+          class="w-full h-auto max-h-[70vh] rounded"
+          preload="metadata"
+        >
+          Your browser does not support the video tag.
+        </video>
       </div>
     </div>
   </div>
@@ -140,6 +214,18 @@ if (!session?.user) {
   // DOM elements
   const statusMessage = document.getElementById('statusMessage') as HTMLElement;
   const filesList = document.getElementById('filesList') as HTMLElement;
+  const batchActions = document.getElementById('batchActions') as HTMLElement;
+  const selectedCount = document.getElementById('selectedCount') as HTMLElement;
+  const tableViewBtn = document.getElementById('tableViewBtn') as HTMLElement;
+  const gridViewBtn = document.getElementById('gridViewBtn') as HTMLElement;
+  const videoModal = document.getElementById('videoModal') as HTMLElement;
+  const videoPlayer = document.getElementById('videoPlayer') as HTMLVideoElement;
+  const videoTitle = document.getElementById('videoTitle') as HTMLElement;
+
+  // State management
+  let currentFiles: any[] = [];
+  let selectedFiles = new Set<string>();
+  let currentViewMode = 'grid'; // 'grid' or 'table'
 
   // Initialize Uppy with R2 S3 support
   const uppy = uppyR2S3Uploader.getUppy();
@@ -189,7 +275,8 @@ if (!session?.user) {
     try {
       const response = await listFiles();
       if (response.success && response.files) {
-        renderFiles(response.files);
+        currentFiles = response.files;
+        renderFiles(currentFiles);
       } else {
         showStatus(response.error || 'Failed to load files', 'error');
         renderEmptyState();
@@ -208,10 +295,116 @@ if (!session?.user) {
       return;
     }
 
+    if (currentViewMode === 'table') {
+      renderTableView(files);
+    } else {
+      renderGridView(files);
+    }
+  }
+
+  function renderTableView(files: any[]) {
+    const filesHtml = files.map(file => `
+      <tr class="border-b border-gray-200 hover:bg-gray-50">
+        <td class="px-4 py-3">
+          <input
+            type="checkbox"
+            class="file-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            data-key="${file.key}"
+            ${selectedFiles.has(file.key) ? 'checked' : ''}
+            onchange="toggleFileSelection('${file.key}')"
+          />
+        </td>
+        <td class="px-4 py-3">
+          <div class="flex items-center gap-3">
+            <div class="text-2xl">${getFileIcon(file.contentType)}</div>
+            <div>
+              <div class="font-medium text-gray-900 truncate max-w-xs" title="${file.filename}">
+                ${file.filename}
+              </div>
+              <div class="text-sm text-gray-500">${getFileTypeCategory(file.contentType)}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-sm text-gray-600">${formatFileSize(file.fileSize)}</td>
+        <td class="px-4 py-3 text-sm text-gray-600">
+          ${(() => {
+            try {
+              const date = new Date(file.uploadedAt);
+              return isNaN(date.getTime()) 
+                ? 'Recently' 
+                : `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+            } catch (e) {
+              return 'Recently';
+            }
+          })()}
+        </td>
+        <td class="px-4 py-3">
+          <div class="flex gap-2">
+            <button
+              onclick="openFile('${file.url}', '${file.filename}', '${file.contentType}')"
+              class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              ${file.contentType.startsWith('video/') ? 'Play' : 'Open'}
+            </button>
+            <button
+              onclick="copyToClipboard('${file.url}')"
+              class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              id="copy-${file.key}"
+            >
+              Copy URL
+            </button>
+            <button
+              onclick="handleDelete('${file.key}', '${file.filename}')"
+              class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+              id="delete-${file.key}"
+            >
+              Delete
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    filesList.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <input
+                  type="checkbox"
+                  class="select-all-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  onchange="toggleSelectAll(this)"
+                />
+              </th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            ${filesHtml}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderGridView(files: any[]) {
     const filesHtml = files.map(file => `
       <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
         <div class="flex items-start justify-between mb-3">
-          <div class="text-2xl">${getFileIcon(file.contentType)}</div>
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              class="file-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              data-key="${file.key}"
+              ${selectedFiles.has(file.key) ? 'checked' : ''}
+              onchange="toggleFileSelection('${file.key}')"
+            />
+            <div class="text-2xl">${getFileIcon(file.contentType)}</div>
+          </div>
           <button
             onclick="handleDelete('${file.key}', '${file.filename}')"
             class="text-red-500 hover:text-red-700 text-sm"
@@ -244,10 +437,10 @@ if (!session?.user) {
         
         <div class="flex gap-2">
           <button
-            onclick="openFile('${file.url}')"
+            onclick="openFile('${file.url}', '${file.filename}', '${file.contentType}')"
             class="flex-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Open
+            ${file.contentType.startsWith('video/') ? 'Play' : 'Open'}
           </button>
           <button
             onclick="copyToClipboard('${file.url}')"
@@ -368,12 +561,163 @@ if (!session?.user) {
     }
   }
 
-  function openFile(url: string) {
-    window.open(url, '_blank');
+  function openFile(url: string, filename?: string, contentType?: string) {
+    // Check if this is a video file
+    if (contentType && contentType.startsWith('video/')) {
+      openVideoModal(url, filename || 'Video');
+    } else {
+      window.open(url, '_blank');
+    }
   }
+
+  function openVideoModal(videoUrl: string, title: string) {
+    if (!videoModal || !videoPlayer || !videoTitle) return;
+    
+    // Set video source and title
+    videoPlayer.src = videoUrl;
+    videoTitle.textContent = title;
+    
+    // Show modal
+    videoModal.classList.remove('hidden');
+    
+    // Load video metadata
+    videoPlayer.load();
+  }
+
+  function closeVideoModal() {
+    if (!videoModal || !videoPlayer) return;
+    
+    // Pause and clear video
+    videoPlayer.pause();
+    videoPlayer.src = '';
+    
+    // Hide modal
+    videoModal.classList.add('hidden');
+  }
+
+  // Close modal when clicking outside
+  videoModal?.addEventListener('click', (e) => {
+    if (e.target === videoModal) {
+      closeVideoModal();
+    }
+  });
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !videoModal?.classList.contains('hidden')) {
+      closeVideoModal();
+    }
+  });
+
+  // View mode functions
+  function switchViewMode(mode: 'table' | 'grid') {
+    currentViewMode = mode;
+    
+    // Update button styles
+    if (mode === 'table') {
+      tableViewBtn?.classList.add('bg-blue-600', 'text-white');
+      tableViewBtn?.classList.remove('text-gray-600');
+      gridViewBtn?.classList.remove('bg-blue-600', 'text-white');
+      gridViewBtn?.classList.add('text-gray-600');
+    } else {
+      gridViewBtn?.classList.add('bg-blue-600', 'text-white');
+      gridViewBtn?.classList.remove('text-gray-600');
+      tableViewBtn?.classList.remove('bg-blue-600', 'text-white');
+      tableViewBtn?.classList.add('text-gray-600');
+    }
+    
+    // Re-render files with new view mode
+    renderFiles(currentFiles);
+  }
+
+  // Selection functions
+  function toggleFileSelection(key: string) {
+    if (selectedFiles.has(key)) {
+      selectedFiles.delete(key);
+    } else {
+      selectedFiles.add(key);
+    }
+    updateBatchActions();
+  }
+
+  function toggleSelectAll(checkbox: HTMLInputElement) {
+    const fileCheckboxes = document.querySelectorAll('.file-checkbox') as NodeListOf<HTMLInputElement>;
+    
+    fileCheckboxes.forEach(cb => {
+      cb.checked = checkbox.checked;
+      if (checkbox.checked) {
+        selectedFiles.add(cb.dataset.key!);
+      } else {
+        selectedFiles.delete(cb.dataset.key!);
+      }
+    });
+    
+    updateBatchActions();
+  }
+
+  function selectAllFiles() {
+    selectedFiles.clear();
+    currentFiles.forEach(file => selectedFiles.add(file.key));
+    renderFiles(currentFiles);
+    updateBatchActions();
+  }
+
+  function deselectAllFiles() {
+    selectedFiles.clear();
+    renderFiles(currentFiles);
+    updateBatchActions();
+  }
+
+  function updateBatchActions() {
+    if (!batchActions || !selectedCount) return;
+    
+    if (selectedFiles.size > 0) {
+      batchActions.classList.remove('hidden');
+      selectedCount.textContent = `${selectedFiles.size} file${selectedFiles.size === 1 ? '' : 's'} selected`;
+    } else {
+      batchActions.classList.add('hidden');
+    }
+  }
+
+  async function deleteSelectedFiles() {
+    if (selectedFiles.size === 0) return;
+    
+    const fileNames = currentFiles
+      .filter(file => selectedFiles.has(file.key))
+      .map(file => file.filename)
+      .join(', ');
+    
+    if (!confirm(`Are you sure you want to delete ${selectedFiles.size} file${selectedFiles.size === 1 ? '' : 's'}?\n\n${fileNames}`)) {
+      return;
+    }
+
+    showStatus(`Deleting ${selectedFiles.size} file${selectedFiles.size === 1 ? '' : 's'}...`, 'info');
+    
+    const deletePromises = Array.from(selectedFiles).map(key => deleteFile(key));
+    
+    try {
+      await Promise.all(deletePromises);
+      showStatus(`Successfully deleted ${selectedFiles.size} file${selectedFiles.size === 1 ? '' : 's'}!`, 'success');
+      selectedFiles.clear();
+      await loadFiles(); // Refresh the file list
+    } catch (error) {
+      showStatus(`Failed to delete some files`, 'error');
+      console.error('Batch delete error:', error);
+    }
+  }
+
+  // Initialize view mode
+  switchViewMode('grid');
 
   // Make functions globally available for onclick handlers
   (window as any).handleDelete = handleDelete;
   (window as any).copyToClipboard = copyToClipboard;
   (window as any).openFile = openFile;
+  (window as any).closeVideoModal = closeVideoModal;
+  (window as any).switchViewMode = switchViewMode;
+  (window as any).toggleFileSelection = toggleFileSelection;
+  (window as any).toggleSelectAll = toggleSelectAll;
+  (window as any).selectAllFiles = selectAllFiles;
+  (window as any).deselectAllFiles = deselectAllFiles;
+  (window as any).deleteSelectedFiles = deleteSelectedFiles;
 </script>
