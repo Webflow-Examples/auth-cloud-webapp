@@ -41,7 +41,7 @@ export class UppyR2S3Uploader {
 
     // Configure XHR upload for R2
     this.uppy.use(XHRUpload, {
-      endpoint: `${this.baseUrl}/api/files/upload`,
+      endpoint: `${import.meta.env.ASSETS_PREFIX}/api/files/upload`,
       method: "POST",
       formData: true,
       fieldName: "file",

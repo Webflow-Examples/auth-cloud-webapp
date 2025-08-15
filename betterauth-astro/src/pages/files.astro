@@ -39,11 +39,6 @@ if (!session?.user) {
             
             <!-- Uppy Progress Bar -->
             <div id="uppy-progress" class="mt-4"></div>
-            
-            <!-- Upload Status -->
-            <div id="uploadStatus" class="mt-4 text-center text-sm text-gray-600">
-              Supports any file type up to 5GB with automatic multipart uploads
-            </div>
           </div>
         </div>
 
@@ -145,7 +140,6 @@ if (!session?.user) {
   // DOM elements
   const statusMessage = document.getElementById('statusMessage') as HTMLElement;
   const filesList = document.getElementById('filesList') as HTMLElement;
-  const uploadStatus = document.getElementById('uploadStatus') as HTMLElement;
 
   // Initialize Uppy with R2 S3 support
   const uppy = uppyR2S3Uploader.getUppy();
@@ -164,7 +158,7 @@ if (!session?.user) {
   // Add Progress Bar plugin
   uppy.use(ProgressBar, {
     target: '#uppy-progress',
-    hideAfterFinish: false,
+    hideAfterFinish: true, // Hide after finish to avoid duplicate
   });
 
   // Initialize
@@ -290,12 +284,6 @@ if (!session?.user) {
     if (file) {
       showStatus('File uploaded successfully!', 'success');
       loadFiles(); // Refresh file list
-      if (uploadStatus) {
-        uploadStatus.textContent = 'File uploaded successfully!';
-        setTimeout(() => {
-          uploadStatus.textContent = 'Supports any file type up to 5GB with direct R2 uploads';
-        }, 3000);
-      }
     } else {
       showStatus('Upload failed', 'error');
     }
@@ -305,21 +293,7 @@ if (!session?.user) {
     showStatus(`Upload failed: ${error.message}`, 'error');
   });
 
-  uppy.on('upload-progress', (file: any, progress: any) => {
-    if (uploadStatus) {
-      const percent = progress.bytesTotal ? Math.round((progress.bytesUploaded / progress.bytesTotal) * 100) : 0;
-      uploadStatus.textContent = `Uploading... ${percent}%`;
-    }
-  });
-
-  uppy.on('complete', (result: any) => {
-    if (uploadStatus) {
-      uploadStatus.textContent = 'Upload complete!';
-      setTimeout(() => {
-        uploadStatus.textContent = 'Supports any file type up to 5GB with direct R2 uploads';
-      }, 3000);
-    }
-  });
+  // Remove duplicate progress tracking - Uppy handles this automatically
 
   async function handleDelete(key: string, filename: string) {
     if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
