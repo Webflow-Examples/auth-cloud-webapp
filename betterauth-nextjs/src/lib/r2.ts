@@ -70,7 +70,7 @@ export class AvatarService {
       }
 
       // Return the URL that can be used to access the image
-      const url = `${this.baseUrl}${config.assetPrefix}/api/avatars/${key}`;
+      const url = `${config.basePath}/api/avatars/${key}`;
 
       return {
         success: true,
@@ -126,10 +126,10 @@ export class AvatarService {
    */
   getAvatarUrl(userId: string, key?: string): string {
     if (key) {
-      return `${this.baseUrl}${config.assetPrefix}/api/avatars/${key}`;
+      return `${config.basePath}/api/avatars/${key}`;
     }
     // Return a default avatar URL if no specific key is provided
-    return `${this.baseUrl}${config.assetPrefix}/api/avatars/default`;
+    return `${config.basePath}/api/avatars/default`;
   }
 
   /**

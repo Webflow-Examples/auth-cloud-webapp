@@ -134,7 +134,7 @@ export class FileService {
       }
 
       // Return the URL that can be used to access the file
-      const url = `${this.baseUrl}${config.assetPrefix}/api/files/${key}`;
+      const url = `${config.assetPrefix}/api/files/${key}`;
       console.log(`Generated file URL: ${url}`);
 
       return {
@@ -186,7 +186,7 @@ export class FileService {
         if (metadata) {
           files.push({
             key: obj.key,
-            url: `${this.baseUrl}${config.assetPrefix}/api/files/${obj.key}`,
+            url: `${config.assetPrefix}/api/files/${obj.key}`,
             filename:
               metadata.customMetadata?.originalName ||
               obj.key.split("/").pop() ||

@@ -8,10 +8,9 @@ import { eq } from "drizzle-orm";
 import config from "../../../../../next.config";
 
 export async function GET(request: NextRequest) {
-  const assetsPrefix = config.assetPrefix;
   try {
     // Get the authenticated user
-    const authInstance = await createAuth();
+    const authInstance = await createAuth(request);
     const session = await authInstance.api.getSession({
       headers: request.headers,
     });
@@ -71,7 +70,7 @@ export async function POST(request: NextRequest) {
   const assetsPrefix = config.assetPrefix;
   try {
     // Get the authenticated user
-    const authInstance = await createAuth();
+    const authInstance = await createAuth(request);
     const session = await authInstance.api.getSession({
       headers: request.headers,
     });

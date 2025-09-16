@@ -14,12 +14,12 @@ export const authClient = createAuthClient({
 
       return typeof window !== "undefined"
         ? `${window.location.origin}${path}/api/auth`
-        : `${import.meta.env.BETTERAUTH_URL}${path}/api/auth`;
+        : `${import.meta.env.BETTER_AUTH_URL}${path}/api/auth`;
     }
 
     // In development, ASSETS_PREFIX is just a path
     return typeof window !== "undefined"
       ? `${window.location.origin}${assetsPrefix}/api/auth`
-      : `${import.meta.env.BETTERAUTH_URL}${assetsPrefix}/api/auth`;
+      : `${import.meta.env.BETTER_AUTH_URL}${assetsPrefix}/api/auth`;
   })(),
 });

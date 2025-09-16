@@ -21,7 +21,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const assetsPrefix = config.assetPrefix;
+  const basePath = config.basePath;
   const { data: session, isPending } = useSession();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -171,13 +171,13 @@ export default function ProfilePage() {
           <div className="text-center mb-8 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
             <div className="mb-4">
               <img
-                src={previewUrl || `${assetsPrefix}/default-avatar.svg`}
+                src={previewUrl || `${basePath}/default-avatar.svg`}
                 alt="Profile Picture"
                 className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg mx-auto"
                 onError={(e) => {
                   (
                     e.target as HTMLImageElement
-                  ).src = `${assetsPrefix}/default-avatar.svg`;
+                  ).src = `${basePath}/default-avatar.svg`;
                 }}
               />
             </div>
@@ -250,14 +250,14 @@ export default function ProfilePage() {
           <div className="flex gap-4 justify-center">
             <button
               type="button"
-              onClick={() => router.push(`${config.assetPrefix}/`)}
+              onClick={() => router.push("/")}
               className="bg-gray-600 text-white px-6 py-3 rounded-md font-medium hover:bg-gray-700 transition-colors"
             >
               Back to Home
             </button>
             <button
               type="button"
-              onClick={() => router.push(`${config.assetPrefix}/files`)}
+              onClick={() => router.push(`${basePath}/files`)}
               className="bg-purple-600 text-white px-6 py-3 rounded-md font-medium hover:bg-purple-700 transition-colors"
             >
               File Manager

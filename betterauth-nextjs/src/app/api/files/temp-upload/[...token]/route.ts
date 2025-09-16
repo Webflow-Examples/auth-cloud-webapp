@@ -2,11 +2,16 @@ import { NextRequest } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createFileService } from "@/lib/file-service";
 import crypto from "crypto";
+import config from "../../../../../../next.config";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string[] }> }
 ) {
+  const corsOrigin = process.env.BETTER_AUTH_URL;
+  console.log("(temp-upload) corsOrigin POST", corsOrigin);
+  console.log("(temp-upload) request.url", request.url);
+  console.log("(temp-upload) BETTER_AUTH_URL", process.env.BETTER_AUTH_URL);
   try {
     const resolvedParams = await params;
     const token = resolvedParams.token?.join("/");
@@ -17,7 +22,16 @@ export async function POST(
           success: false,
           error: "Upload token is required",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin!,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -32,7 +46,16 @@ export async function POST(
           success: false,
           error: "Invalid upload token",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin!,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -43,7 +66,16 @@ export async function POST(
           success: false,
           error: "Upload token has expired",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin!,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -60,7 +92,16 @@ export async function POST(
           success: false,
           error: "Invalid upload token signature",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin!,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -76,7 +117,16 @@ export async function POST(
           success: false,
           error: "No file provided",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin!,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -91,7 +141,16 @@ export async function POST(
           success: false,
           error: validation.error,
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin!,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -152,7 +211,16 @@ export async function POST(
           success: false,
           error: uploadResult.error || "Failed to upload file",
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": corsOrigin!,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+          },
+        }
       );
     }
 
@@ -167,7 +235,16 @@ export async function POST(
         fileSize: file.size,
         contentType: file.type,
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": corsOrigin!,
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Credentials": "true",
+        },
+      }
     );
   } catch (error) {
     console.error("Error in temp upload:", error);
@@ -176,19 +253,33 @@ export async function POST(
         success: false,
         error: "Internal server error",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": corsOrigin!,
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Credentials": "true",
+        },
+      }
     );
   }
 }
 
 // Handle OPTIONS for CORS
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const corsOrigin = process.env.BETTER_AUTH_URL;
+  console.log("(temp-upload) corsOrigin", corsOrigin);
+  console.log("(temp-upload) request.url", request.url);
+  console.log("(temp-upload) BETTER_AUTH_URL", process.env.BETTER_AUTH_URL);
   return new Response(null, {
     status: 200,
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": corsOrigin!,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Credentials": "true",
     },
   });
 }

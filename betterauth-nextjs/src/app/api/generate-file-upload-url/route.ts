@@ -8,7 +8,7 @@ import config from "../../../../next.config";
 export async function POST(request: NextRequest) {
   try {
     // Get the authenticated user
-    const authInstance = await createAuth();
+    const authInstance = await createAuth(request);
     const session = await authInstance.api.getSession({
       headers: request.headers,
     });
@@ -72,9 +72,7 @@ export async function POST(request: NextRequest) {
     const token = Buffer.from(JSON.stringify(tokenData)).toString("base64url");
 
     // Create the upload URL - use the assets prefix (worker URL) for the actual upload
-    const uploadUrl = `${new URL(request.url).origin}${
-      config.assetPrefix
-    }/api/files/temp-upload/${token}`;
+    const uploadUrl = `${config.assetPrefix}/api/files/temp-upload/${token}`;
 
     return new Response(
       JSON.stringify({

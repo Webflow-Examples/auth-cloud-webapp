@@ -452,7 +452,7 @@ export default function FilesPage() {
           {/* Back Button */}
           <div className="mt-8 text-center">
             <button
-              onClick={() => router.push(`${config.assetPrefix}/`)}
+              onClick={() => router.push("/")}
               className="bg-gray-600 text-white px-6 py-3 rounded-md font-medium hover:bg-gray-700 transition-colors"
             >
               Back to Home

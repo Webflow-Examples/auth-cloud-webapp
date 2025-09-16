@@ -46,7 +46,7 @@ export interface UploadProgress {
 export async function uploadFile(file: File): Promise<FileUploadResponse> {
   try {
     // Step 1: Generate upload URL with signature
-    const baseUrl = config.assetPrefix;
+    const baseUrl = config.basePath;
     const generateUrlResponse = await fetch(
       `${baseUrl}/api/generate-file-upload-url`,
       {
@@ -118,7 +118,7 @@ export function uploadFileWithProgress(
   return new Promise(async (resolve, reject) => {
     try {
       // Step 1: Generate upload URL with signature
-      const baseUrl = config.assetPrefix;
+      const baseUrl = config.basePath;
       const generateUrlResponse = await fetch(
         `${baseUrl}/api/generate-file-upload-url`,
         {
@@ -232,7 +232,7 @@ export function uploadFileWithProgress(
  */
 export async function listFiles(): Promise<FileListResponse> {
   try {
-    const baseUrl = config.assetPrefix;
+    const baseUrl = config.basePath;
     const response = await fetch(`${baseUrl}/api/files/list`, {
       method: "GET",
       credentials: "include",
@@ -244,7 +244,7 @@ export async function listFiles(): Promise<FileListResponse> {
       throw new Error(`Failed to list files: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as FileListResponse;
     return data;
   } catch (error) {
     console.error("Error listing files:", error);
@@ -276,7 +276,7 @@ export async function deleteFile(key: string): Promise<FileDeleteResponse> {
       throw new Error(`Failed to delete file: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as FileDeleteResponse;
     return data;
   } catch (error) {
     console.error("Error deleting file:", error);

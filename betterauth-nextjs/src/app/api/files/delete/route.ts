@@ -6,7 +6,7 @@ import { createFileService } from "@/lib/file-service";
 export async function DELETE(request: NextRequest) {
   try {
     // Get the authenticated user
-    const authInstance = await createAuth();
+    const authInstance = await createAuth(request);
     const session = await authInstance.api.getSession({
       headers: request.headers,
     });
@@ -19,7 +19,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const { key } = await request.json();
+    const { key } = await request.json() as { key: string };
 
     if (!key) {
       return new Response(

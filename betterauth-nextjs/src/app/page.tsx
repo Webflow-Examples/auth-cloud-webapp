@@ -83,7 +83,7 @@ export default function Home() {
             <Link
               button={true}
               options={{
-                href: `${config.assetPrefix}/profile`,
+                href: `${config.basePath}/profile`,
               }}
               className="button-primary"
               style={{
@@ -104,7 +104,7 @@ export default function Home() {
             <Link
               button={true}
               options={{
-                href: `${config.assetPrefix}/files`,
+                href: `${config.basePath}/files`,
               }}
               className="button-primary"
               style={{
@@ -131,7 +131,7 @@ export default function Home() {
                 await signOut({
                   fetchOptions: {
                     onSuccess: () => {
-                      router.push(`${config.assetPrefix}/login`);
+                      router.push(`${config.basePath}/login`);
                     },
                   },
                 });

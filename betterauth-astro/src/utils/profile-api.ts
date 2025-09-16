@@ -95,7 +95,7 @@ export async function fetchProfile(): Promise<ProfileData | null> {
     // In development, use window.location.origin
     return typeof window !== "undefined"
       ? `${window.location.origin}${baseUrl}/api/user/profile`
-      : `${import.meta.env.BETTERAUTH_URL}${baseUrl}/api/user/profile`;
+      : `${import.meta.env.BETTER_AUTH_URL}${baseUrl}/api/user/profile`;
   })();
 
   try {

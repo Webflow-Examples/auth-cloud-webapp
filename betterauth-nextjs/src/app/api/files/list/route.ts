@@ -6,7 +6,7 @@ import { createFileService } from "@/lib/file-service";
 export async function GET(request: NextRequest) {
   try {
     // Get the authenticated user
-    const authInstance = await createAuth();
+    const authInstance = await createAuth(request);
     const session = await authInstance.api.getSession({
       headers: request.headers,
     });

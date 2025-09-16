@@ -2,11 +2,12 @@ import { NextRequest } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createAuth } from "@/lib/auth";
 import { createAvatarService } from "@/lib/r2";
+import config from "../../../../next.config";
 
 export async function POST(request: NextRequest) {
   try {
     // Get the authenticated user
-    const authInstance = await createAuth();
+    const authInstance = await createAuth(request);
     const session = await authInstance.api.getSession({
       headers: request.headers,
     });
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const bucket = env.USER_AVATARS as any;
     const avatarService = createAvatarService(
       bucket,
-      new URL(request.url).origin
+      config.basePath!,
     );
 
     // Validate the file
