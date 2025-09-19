@@ -448,8 +448,6 @@ export default function FilesPage() {
               </div>
             )}
           </div>
-
-          {/* Back Button */}
           <div className="mt-8 text-center">
             <button
               onClick={() => router.push("/")}

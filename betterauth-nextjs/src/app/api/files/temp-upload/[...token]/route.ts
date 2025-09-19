@@ -9,9 +9,6 @@ export async function POST(
   { params }: { params: Promise<{ token: string[] }> }
 ) {
   const corsOrigin = process.env.BETTER_AUTH_URL;
-  console.log("(temp-upload) corsOrigin POST", corsOrigin);
-  console.log("(temp-upload) request.url", request.url);
-  console.log("(temp-upload) BETTER_AUTH_URL", process.env.BETTER_AUTH_URL);
   try {
     const resolvedParams = await params;
     const token = resolvedParams.token?.join("/");
@@ -203,8 +200,6 @@ export async function POST(
       );
     }
 
-    console.log(`Upload result:`, uploadResult);
-
     if (!uploadResult.success) {
       return new Response(
         JSON.stringify({
@@ -270,9 +265,6 @@ export async function POST(
 // Handle OPTIONS for CORS
 export async function OPTIONS(request: NextRequest) {
   const corsOrigin = process.env.BETTER_AUTH_URL;
-  console.log("(temp-upload) corsOrigin", corsOrigin);
-  console.log("(temp-upload) request.url", request.url);
-  console.log("(temp-upload) BETTER_AUTH_URL", process.env.BETTER_AUTH_URL);
   return new Response(null, {
     status: 200,
     headers: {

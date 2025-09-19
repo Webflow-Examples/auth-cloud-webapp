@@ -15,12 +15,6 @@ export default function Home() {
     if (!isPending && !session) {
       router.push("/login");
     }
-    console.log("OS Debug Info:", {
-      platform: os.platform(),
-      arch: os.arch(),
-      hostname: os.hostname(),
-      release: os.release(),
-    });
   }, [session, isPending, router]);
 
   if (isPending) {

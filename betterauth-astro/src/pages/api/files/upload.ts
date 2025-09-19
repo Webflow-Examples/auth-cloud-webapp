@@ -3,14 +3,6 @@ import { auth } from "../../../utils/auth";
 import { createFileService } from "../../../utils/file-service";
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  // Debug logging
-  console.log(
-    "Request headers:",
-    Object.fromEntries(request.headers.entries())
-  );
-  console.log("BETTER_AUTH_URL:", locals.runtime.env.BETTER_AUTH_URL);
-  console.log("Request origin:", request.headers.get("origin"));
-
   // Set CORS origin dynamically based on request origin
   const requestOrigin = request.headers.get("origin");
   const corsOrigin = requestOrigin || locals.runtime.env.BETTER_AUTH_URL;

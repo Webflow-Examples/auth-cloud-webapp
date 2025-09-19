@@ -11,13 +11,8 @@ export const createAuth = async (request: Request) => {
   const { env } = await getCloudflareContext({ async: true });
 
   const baseUrl = new URL(request.url).origin;
-  console.log("auth util - baseUrl", baseUrl);
   const configBasePath = config.basePath;
   const configAssetPrefix = config.assetPrefix;
-
-  console.log("auth util - configBasePath", configBasePath);
-  console.log("auth util - configAssetPrefix", configAssetPrefix);
-
 
   return betterAuth({
     database: drizzleAdapter(db, {

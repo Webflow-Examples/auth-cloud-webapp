@@ -182,13 +182,9 @@ export function uploadFileWithProgress(
       });
 
       xhr.addEventListener("load", () => {
-        console.log(`Upload response status: ${xhr.status}`);
-        console.log(`Upload response text:`, xhr.responseText);
-
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const data = JSON.parse(xhr.responseText) as FileUploadResponse;
-            console.log(`Parsed upload response:`, data);
             resolve(data);
           } catch (error) {
             console.error(`Failed to parse upload response:`, error);
@@ -244,7 +240,7 @@ export async function listFiles(): Promise<FileListResponse> {
       throw new Error(`Failed to list files: ${response.status}`);
     }
 
-    const data = await response.json() as FileListResponse;
+    const data = (await response.json()) as FileListResponse;
     return data;
   } catch (error) {
     console.error("Error listing files:", error);
@@ -276,7 +272,7 @@ export async function deleteFile(key: string): Promise<FileDeleteResponse> {
       throw new Error(`Failed to delete file: ${response.status}`);
     }
 
-    const data = await response.json() as FileDeleteResponse;
+    const data = (await response.json()) as FileDeleteResponse;
     return data;
   } catch (error) {
     console.error("Error deleting file:", error);

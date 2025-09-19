@@ -32,9 +32,6 @@ export interface ProfileData {
 function getSessionToken(): string | null {
   if (typeof document === "undefined") return null;
 
-  // Debug: log all cookies to see what's available
-  console.log("All cookies:", document.cookie);
-
   // BetterAuth typically stores session tokens in cookies
   // Look for common session cookie names - BetterAuth uses a specific format
   const cookieNames = [
