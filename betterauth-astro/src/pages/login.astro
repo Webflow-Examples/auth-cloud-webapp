@@ -11,72 +11,89 @@ console.log("session", session);
 
 // Redirect if already authenticated
 if (session) {
-  return Astro.redirect("/app");
+  return Astro.redirect(import.meta.env.BASE_URL + "/");
 }
 ---
 
 <Layout>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-      <div>
-        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Sign in to your account
-        </h2>
-        <p class="mt-2 text-center text-sm text-gray-600">
-          Or 
-          <a
-            href="/app/signup"
-            class="font-medium"
-          >
-            create a new account
-          </a>
-        </p>
+  <div class="min-h-screen bg-base-200 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full">
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <!-- Header -->
+          <div class="text-center mb-8">
+            <h2 class="card-title text-3xl font-bold justify-center bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Sign in to your account
+            </h2>
+            <p class="text-base-content/70 mt-2">
+              Or 
+              <a
+                href={import.meta.env.BASE_URL + "/signup"}
+                class="link link-primary font-medium"
+              >
+                create a new account
+              </a>
+            </p>
+          </div>
+          
+          <!-- Login Form -->
+          <form id="loginForm" class="space-y-6" method="POST">
+            <div class="space-y-4">
+              <div class="form-control">
+                <label for="email" class="label">
+                  <span class="label-text">Email address</span>
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autocomplete="email"
+                  required
+                  class="input input-bordered w-full"
+                  placeholder="Enter your email address"
+                />
+              </div>
+              
+              <div class="form-control">
+                <label for="password" class="label">
+                  <span class="label-text">Password</span>
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                  class="input input-bordered w-full"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="error" class="alert alert-error hidden">
+              <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span id="error-text"></span>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="form-control mt-6">
+              <button
+                type="submit"
+                id="submitBtn"
+                class="btn btn-primary w-full"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+                Sign in
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-      
-      <form id="loginForm" class="mt-8 space-y-6" method="POST">
-        <div class="rounded-md shadow-sm -space-y-px">
-          <div>
-            <label for="email" class="sr-only">
-              Email address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autocomplete="email"
-              required
-              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-              placeholder="Email address"
-            />
-          </div>
-          <div>
-            <label for="password" class="sr-only">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autocomplete="current-password"
-              required
-              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-              placeholder="Password"
-            />
-          </div>
-        </div>
-
-        <div id="error" class="text-red-600 text-sm text-center hidden"></div>
-
-        <div class="text-white">
-          <button
-            type="submit"
-            id="submitBtn"
-            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Sign in
-          </button>
-        </div>
-      </form>
     </div>
   </div>
 </Layout>
@@ -87,6 +104,7 @@ if (session) {
   const form = document.getElementById('loginForm') as HTMLFormElement;
   const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
   const errorDiv = document.getElementById('error') as HTMLDivElement;
+  const errorText = document.getElementById('error-text') as HTMLSpanElement;
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -97,7 +115,10 @@ if (session) {
 
     // Show loading state
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Signing in...';
+    submitBtn.innerHTML = `
+      <span class="loading loading-spinner loading-sm"></span>
+      Signing in...
+    `;
     errorDiv.classList.add('hidden');
 
     try {
@@ -107,19 +128,24 @@ if (session) {
       });
 
       if (error) {
-        errorDiv.textContent = error.message || 'Login failed';
+        errorText.textContent = error.message || 'Login failed';
         errorDiv.classList.remove('hidden');
       } else if (data) {
         // Redirect on success
-        window.location.href = '/app';
+        window.location.href = import.meta.env.BASE_URL + '/';
       }
     } catch (err) {
-      errorDiv.textContent = 'An unexpected error occurred';
+      errorText.textContent = 'An unexpected error occurred';
       errorDiv.classList.remove('hidden');
     } finally {
       // Reset loading state
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Sign in';
+      submitBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+        </svg>
+        Sign in
+      `;
     }
   });
 </script>

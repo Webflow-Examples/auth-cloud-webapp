@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { Section, Container, Block, Link } from '../../devlink/_Builtin/Basic';
 import { auth } from "../utils/auth";
 
 const authInstance = await auth(Astro.locals.runtime.env);
@@ -8,79 +7,295 @@ const authInstance = await auth(Astro.locals.runtime.env);
 const session = await authInstance.api.getSession({
   headers: Astro.request.headers,
 });
-const user = session?.user;
 
-// Redirect if already authenticated
+// Redirect if not authenticated
 if (!session) {
-  return Astro.redirect("/app/login");
+  return Astro.redirect(import.meta.env.BASE_URL + "/login");
 }
 
+// Use session user data directly since fetchProfile requires client-side authentication
+const user = session.user;
+
+// Get the asset prefix from config
+const assetsPrefix = import.meta.env.ASSETS_PREFIX || import.meta.env.BASE_URL || '';
+console.log("assetsPrefix", assetsPrefix);
 ---
 
 <Layout>
-  <Section
-    client:load
-    tag="section"
-    className="margin-bottom-24px"
-    style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}
-  >
-    <Container>
-      <Block
-        tag="div"
-        className="hero-split"
-        style={{
-          textAlign: 'center',
-          maxWidth: '600px',
-          margin: '0 auto'
-        }}
-      >
-        <h1 class="margin-bottom-24px">Welcome to Webflow Cloud, {user?.name}</h1>
-        <p class="margin-bottom-24px">You are successfully logged in</p>
-        <div>
-          <Link
-            button={true}
-            options={{
-              href: "#"
-            }}
-            data-action="sign-out"
-            className="button-primary"
-          >
-            Log out
-          </Link>
+  <div class="min-h-screen bg-base-200 py-8">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto">
+        <!-- Header Card -->
+        <div class="card bg-base-100 shadow-xl mb-8">
+          <div class="card-body text-center">
+            <h1 class="card-title text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent justify-center">
+              User Profile
+            </h1>
+            <p class="text-base-content/70">
+              Manage your account details and profile picture
+            </p>
+          </div>
         </div>
-      </Block>
-    </Container>
-  </Section>
+
+        <!-- Main Profile Card -->
+        <div class="card bg-base-100 shadow-xl">
+          <div class="card-body">
+            <form id="profile-form">
+              <!-- Avatar Section -->
+              <div class="form-control mb-8">
+                <label class="label">
+                  <span class="label-text text-lg font-semibold">Profile Picture</span>
+                </label>
+                <div class="flex flex-col items-center p-8 border-2 border-dashed border-base-300 rounded-lg bg-base-200/50">
+                  <div class="avatar mb-4">
+                    <div class="w-32 h-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                      <img 
+                        id="current-avatar"
+                        src={user?.image || `${assetsPrefix}/default-avatar.svg`} 
+                        alt="Profile Picture"
+                        class="w-full h-full object-cover rounded-full"
+                        onerror="this.src=`${assetsPrefix}/default-avatar.svg`"
+                      />
+                    </div>
+                  </div>
+                  <input 
+                    type="file" 
+                    id="avatar-input" 
+                    accept="image/*"
+                    class="hidden"
+                  />
+                  <button 
+                    type="button" 
+                    id="upload-btn"
+                    class="btn btn-primary"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Upload New Picture
+                  </button>
+                  <p class="text-sm text-base-content/60 mt-2">
+                    JPEG, PNG, GIF, or WebP (max 5MB)
+                  </p>
+                </div>
+              </div>
+
+              <!-- User Details -->
+              <div class="form-control mb-8">
+                <h3 class="text-xl font-semibold mb-4">Account Details</h3>
+                
+                <div class="grid gap-6">
+                  <!-- Name Field -->
+                  <div class="form-control">
+                    <label class="label">
+                      <span class="label-text font-medium">Full Name *</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      id="name" 
+                      name="name"
+                      value={user?.name || ''}
+                      required
+                      class="input input-bordered w-full"
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+
+                  <!-- Email Field -->
+                  <div class="form-control">
+                    <label class="label">
+                      <span class="label-text font-medium">Email Address *</span>
+                    </label>
+                    <input 
+                      type="email" 
+                      id="email" 
+                      name="email"
+                      value={user?.email || ''}
+                      required
+                      class="input input-bordered w-full"
+                      placeholder="Enter your email address"
+                    />
+                  </div>
+
+                  <!-- Account Info (Read-only) -->
+                  <div class="stats stats-horizontal shadow bg-base-200">
+                    <div class="stat">
+                      <div class="stat-title text-xs">Account ID</div>
+                      <div class="stat-value text-sm font-mono">{user?.id || 'N/A'}</div>
+                    </div>
+                    <div class="stat">
+                      <div class="stat-title text-xs">Email Verified</div>
+                      <div class="stat-value text-sm">
+                        {user?.emailVerified ? (
+                          <span class="text-success flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Verified
+                          </span>
+                        ) : (
+                          <span class="text-error flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Not Verified
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex flex-wrap gap-4 justify-center">
+                <button 
+                  type="submit" 
+                  id="save-btn"
+                  class="btn btn-success"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save Changes
+                </button>
+                
+                <a
+                  href={import.meta.env.BASE_URL + "/files"}
+                  class="btn btn-primary"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" />
+                  </svg>
+                  File Manager
+                </a>
+                
+                <button
+                  type="button"
+                  data-action="sign-out"
+                  class="btn btn-outline btn-error"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Log Out
+                </button>
+              </div>
+            </form>
+
+            <!-- Status Messages -->
+            <div id="status-message" class="alert mt-6 hidden">
+              <span id="status-text"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </Layout>
 
-<style>
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    background: linear-gradient(83.21deg, #3245ff 0%, #bc52ee 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-</style>
-
 <script>
+  import { updateProfile, validateProfileData } from "../utils/profile-api";
   import { authClient } from "../utils/auth-client";
 
+  // File upload handling
+  const avatarInput = document.getElementById('avatar-input') as HTMLInputElement;
+  const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
+  const currentAvatar = document.getElementById('current-avatar') as HTMLImageElement;
+  let selectedFile: File | null = null;
+
+  uploadBtn.addEventListener('click', () => {
+    avatarInput.click();
+  });
+
+  avatarInput.addEventListener('change', (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      selectedFile = file;
+      
+      // Preview the selected image
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentAvatar.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Form submission
+  const form = document.getElementById('profile-form') as HTMLFormElement;
+  const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
+  const statusMessage = document.getElementById('status-message') as HTMLDivElement;
+  const statusText = document.getElementById('status-text') as HTMLSpanElement;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(form);
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+
+    // Validate data
+    const validation = validateProfileData({ name, email, avatar: selectedFile || undefined });
+    if (!validation.valid) {
+      showStatus(validation.errors.join(', '), 'error');
+      return;
+    }
+
+    // Show loading state
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `
+      <span class="loading loading-spinner loading-sm"></span>
+      Saving...
+    `;
+    showStatus('Updating profile...', 'info');
+
+    try {
+      const result = await updateProfile({ name, email, avatar: selectedFile || undefined });
+      
+      if (result.success) {
+        showStatus('Profile updated successfully!', 'success');
+        selectedFile = null; // Reset file selection
+        avatarInput.value = ''; // Reset file input
+      } else {
+        showStatus(result.error || 'Failed to update profile', 'error');
+      }
+    } catch (error) {
+      showStatus('An error occurred while updating profile', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        Save Changes
+      `;
+    }
+  });
+
+  // Status message helper
+  function showStatus(message: string, type: 'success' | 'error' | 'info') {
+    statusText.textContent = message;
+    statusMessage.className = `alert mt-6 ${type === 'success' ? 'alert-success' : type === 'error' ? 'alert-error' : 'alert-info'}`;
+    statusMessage.classList.remove('hidden');
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      statusMessage.classList.add('hidden');
+    }, 5000);
+  }
+
+  // Logout handling
   const signOut = async () => {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          window.location.href = "/app/login";
+          window.location.href = import.meta.env.BASE_URL + "/login";
         },
       },
     });
   };
 
-  document.querySelector("[data-action='sign-out']")?.addEventListener("click", signOut); 
+  document.querySelector("[data-action='sign-out']")?.addEventListener("click", signOut);
 </script>

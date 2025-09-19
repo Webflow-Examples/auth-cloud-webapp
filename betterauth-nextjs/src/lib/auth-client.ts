@@ -1,8 +1,18 @@
 import { createAuthClient } from "better-auth/react";
+import config from "../../next.config";
 
 export const { signIn, signUp, signOut, useSession } = createAuthClient({
-  baseURL:
-    typeof window !== "undefined"
-      ? `${window.location.origin}/app/api/auth`
-      : "http://localhost:8787/app/api/auth",
+  baseURL: (() => {
+    const basePath = config.basePath || "";
+
+    if (typeof window !== "undefined") {
+      return `${process.env.BETTER_AUTH_URL}/${basePath}/api/auth`;
+    }
+
+    if (basePath.startsWith("http")) {
+      return `${basePath}/${config.basePath}/api/auth`;
+    }
+
+    return `${process.env.BETTER_AUTH_URL}/${basePath}/api/auth`;
+  })(),
 });

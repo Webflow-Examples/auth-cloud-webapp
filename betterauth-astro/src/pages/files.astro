@@ -1,0 +1,740 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { auth } from '../utils/auth';
+
+// Check authentication
+const authInstance = await auth(Astro.locals.runtime.env);
+const session = await authInstance.api.getSession({
+  headers: Astro.request.headers,
+});
+
+if (!session?.user) {
+  return Astro.redirect('/login');
+}
+---
+
+<!-- Import Uppy CSS -->
+<link href="https://releases.transloadit.com/uppy/v3.21.0/uppy.min.css" rel="stylesheet">
+
+<Layout title="File Manager">
+  <div class="min-h-screen bg-base-200 py-12 px-4">
+    <div class="max-w-6xl mx-auto">
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+
+          <h1 class="card-title text-3xl font-bold text-center mb-8 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            File Manager
+          </h1>
+
+          <!-- Status Message -->
+          <div id="statusMessage" class="hidden alert mb-6"></div>
+
+          <!-- Upload Section -->
+          <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Upload New File</h2>
+            <div class="card bg-base-200 border-2 border-dashed border-base-300">
+              <div class="card-body">
+                <!-- Uppy Dashboard -->
+                <div id="uppy-dashboard"></div>
+                
+                <!-- Uppy Progress Bar -->
+                <div id="uppy-progress" class="mt-4"></div>
+                
+                <!-- Custom Progress Bar -->
+                <div id="customProgress" class="hidden mt-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <span id="progressText" class="text-sm font-medium">Uploading...</span>
+                    <span id="progressPercent" class="text-sm opacity-70">0%</span>
+                  </div>
+                  <progress id="progressBar" class="progress progress-primary w-full" value="0" max="100"></progress>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Files List -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-semibold">Your Files</h2>
+              <div class="flex items-center gap-4">
+                <!-- View Mode Toggle -->
+                <div class="join">
+                  <button
+                    id="tableViewBtn"
+                    class="btn btn-sm join-item"
+                    onclick="switchViewMode('table')"
+                  >
+                    📋 Table
+                  </button>
+                  <button
+                    id="gridViewBtn"
+                    class="btn btn-sm join-item"
+                    onclick="switchViewMode('grid')"
+                  >
+                    🖼️ Grid
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Batch Actions (hidden by default) -->
+            <div id="batchActions" class="hidden mb-4 card bg-base-200 border border-base-300">
+              <div class="card-body p-4">
+                <div class="flex items-center justify-between w-full">
+                  <div class="flex items-center gap-4">
+                    <span id="selectedCount" class="text-sm font-medium">0 files selected</span>
+                    <button
+                      onclick="selectAllFiles()"
+                      class="btn btn-primary btn-sm"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onclick="deselectAllFiles()"
+                      class="btn btn-neutral btn-sm"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                  <button
+                    onclick="deleteSelectedFiles()"
+                    class="btn btn-error btn-sm"
+                  >
+                    🗑️ Delete Selected
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div id="filesList">
+              <div class="text-center py-12 text-base-content/50">
+                <div class="text-4xl mb-4">📂</div>
+                <p>Loading files...</p>
+                <div class="mt-4">
+                  <span class="loading loading-spinner loading-md text-primary"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Back Button -->
+          <div class="mt-8 text-center">
+            <a
+              href={import.meta.env.BASE_URL + "/"}
+              class="btn btn-neutral"
+            >
+              Back to Home
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Player Modal -->
+  <dialog id="videoModal" class="modal">
+    <div class="modal-box max-w-4xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="videoTitle" class="text-lg font-semibold truncate"></h3>
+        <button
+          onclick="closeVideoModal()"
+          class="btn btn-sm btn-circle btn-ghost"
+        >
+          ✕
+        </button>
+      </div>
+      <div>
+        <video
+          id="videoPlayer"
+          controls
+          class="w-full h-auto max-h-[70vh] rounded"
+          preload="metadata"
+        >
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button onclick="closeVideoModal()">close</button>
+    </form>
+  </dialog>
+</Layout>
+
+
+
+<script>
+  import { uppyR2S3Uploader } from '../utils/uppy-r2-s3';
+  import Dashboard from '@uppy/dashboard';
+  import ProgressBar from '@uppy/progress-bar';
+  import {
+    listFiles,
+    deleteFile,
+    getFileTypeCategory,
+    formatFileSize,
+    getFileIcon,
+  } from '../utils/file-api.js';
+
+  // DOM elements
+  const statusMessage = document.getElementById('statusMessage') as HTMLElement;
+  const filesList = document.getElementById('filesList') as HTMLElement;
+  const batchActions = document.getElementById('batchActions') as HTMLElement;
+  const selectedCount = document.getElementById('selectedCount') as HTMLElement;
+  const tableViewBtn = document.getElementById('tableViewBtn') as HTMLElement;
+  const gridViewBtn = document.getElementById('gridViewBtn') as HTMLElement;
+  const videoModal = document.getElementById('videoModal') as HTMLElement;
+  const videoPlayer = document.getElementById('videoPlayer') as HTMLVideoElement;
+  const videoTitle = document.getElementById('videoTitle') as HTMLElement;
+  const customProgress = document.getElementById('customProgress') as HTMLElement;
+  const progressText = document.getElementById('progressText') as HTMLElement;
+  const progressPercent = document.getElementById('progressPercent') as HTMLElement;
+  const progressBar = document.getElementById('progressBar') as HTMLElement;
+
+  // State management
+  let currentFiles: any[] = [];
+  let selectedFiles = new Set<string>();
+  let currentViewMode = 'grid'; // 'grid' or 'table'
+
+  // Initialize Uppy with R2 S3 support
+  const uppy = uppyR2S3Uploader.getUppy();
+
+  // Add Dashboard plugin
+  uppy.use(Dashboard, {
+    inline: true,
+    target: '#uppy-dashboard',
+    height: 300,
+    showProgressDetails: true,
+    proudlyDisplayPoweredByUppy: false,
+    theme: 'light',
+    width: '100%',
+  });
+
+  // Add Progress Bar plugin
+  uppy.use(ProgressBar, {
+    target: '#uppy-progress',
+    hideAfterFinish: true, // Hide after finish to avoid duplicate
+  });
+
+  // Progress functions
+  function showProgress() {
+    if (customProgress) {
+      customProgress.classList.remove('hidden');
+    }
+  }
+
+  function hideProgress() {
+    if (customProgress) {
+      customProgress.classList.add('hidden');
+    }
+  }
+
+  function updateProgress(percent: number, text?: string) {
+    if (progressPercent) {
+      progressPercent.textContent = `${Math.round(percent)}%`;
+    }
+    if (progressBar) {
+      progressBar.setAttribute('value', percent.toString());
+    }
+    if (progressText && text) {
+      progressText.textContent = text;
+    }
+  }
+
+  // Initialize
+  loadFiles();
+
+  // Get base URL for navigation
+  const baseUrl = import.meta.env.BASE_URL;
+
+  function showStatus(text: string, type: 'success' | 'error' | 'info') {
+    if (!statusMessage) return;
+    
+    statusMessage.textContent = text;
+    statusMessage.className = `alert ${
+      type === 'success'
+        ? 'alert-success'
+        : type === 'error'
+        ? 'alert-error'
+        : 'alert-info'
+    }`;
+    statusMessage.classList.remove('hidden');
+    
+    setTimeout(() => {
+      statusMessage.classList.add('hidden');
+    }, 5000);
+  }
+
+  async function loadFiles() {
+    try {
+      const response = await listFiles();
+      if (response.success && response.files) {
+        currentFiles = response.files;
+        renderFiles(currentFiles);
+      } else {
+        showStatus(response.error || 'Failed to load files', 'error');
+        renderEmptyState();
+      }
+    } catch (error) {
+      showStatus('Failed to load files', 'error');
+      renderEmptyState();
+    }
+  }
+
+  function renderFiles(files: any[]) {
+    if (!filesList) return;
+
+    if (files.length === 0) {
+      renderEmptyState();
+      return;
+    }
+
+    if (currentViewMode === 'table') {
+      renderTableView(files);
+    } else {
+      renderGridView(files);
+    }
+  }
+
+  function renderTableView(files: any[]) {
+    const filesHtml = files.map(file => `
+      <tr class="hover">
+        <td class="p-4">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-primary file-checkbox"
+            data-key="${file.key}"
+            ${selectedFiles.has(file.key) ? 'checked' : ''}
+            onchange="toggleFileSelection('${file.key}')"
+          />
+        </td>
+        <td class="p-4">
+          <div class="flex items-center gap-3">
+            <div class="text-2xl">${getFileIcon(file.contentType)}</div>
+            <div>
+              <div class="font-medium truncate max-w-xs" title="${file.filename}">
+                ${file.filename}
+              </div>
+              <div class="text-sm opacity-70">${getFileTypeCategory(file.contentType)}</div>
+            </div>
+          </div>
+        </td>
+        <td class="p-4 text-sm opacity-70">${formatFileSize(file.fileSize)}</td>
+        <td class="p-4 text-sm opacity-70">
+          ${(() => {
+            try {
+              const date = new Date(file.uploadedAt);
+              return isNaN(date.getTime()) 
+                ? 'Recently' 
+                : `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+            } catch (e) {
+              return 'Recently';
+            }
+          })()}
+        </td>
+        <td class="p-4">
+          <div class="flex gap-2">
+            <button
+              onclick="openFile('${file.url}', '${file.filename}', '${file.contentType}')"
+              class="btn btn-primary btn-sm"
+            >
+              ${file.contentType.startsWith('video/') ? 'Play' : 'Open'}
+            </button>
+            <button
+              onclick="copyToClipboard('${file.url}')"
+              class="btn btn-outline btn-sm"
+              id="copy-${file.key}"
+            >
+              Copy URL
+            </button>
+            <button
+              onclick="handleDelete('${file.key}', '${file.filename}')"
+              class="btn btn-error btn-sm"
+              id="delete-${file.key}"
+            >
+              Delete
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    filesList.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="table table-zebra">
+          <thead>
+            <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-primary select-all-checkbox"
+                  onchange="toggleSelectAll(this)"
+                />
+              </th>
+              <th>File</th>
+              <th>Size</th>
+              <th>Uploaded</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filesHtml}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderGridView(files: any[]) {
+    const filesHtml = files.map(file => `
+      <div class="card bg-base-100 shadow-md hover:shadow-lg transition-shadow">
+        <div class="card-body">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-primary file-checkbox"
+                data-key="${file.key}"
+                ${selectedFiles.has(file.key) ? 'checked' : ''}
+                onchange="toggleFileSelection('${file.key}')"
+              />
+              <div class="text-2xl">${getFileIcon(file.contentType)}</div>
+            </div>
+            <button
+              onclick="handleDelete('${file.key}', '${file.filename}')"
+              class="btn btn-ghost btn-sm text-error"
+              id="delete-${file.key}"
+            >
+              Delete
+            </button>
+          </div>
+          
+          <h3 class="card-title text-base mb-1 truncate" title="${file.filename}">
+            ${file.filename}
+          </h3>
+          
+          <p class="text-sm opacity-70 mb-2">
+            ${formatFileSize(file.fileSize)} • ${getFileTypeCategory(file.contentType)}
+          </p>
+          
+          <p class="text-xs opacity-50 mb-3">
+            Uploaded ${(() => {
+              try {
+                const date = new Date(file.uploadedAt);
+                return isNaN(date.getTime()) 
+                  ? 'Recently' 
+                  : `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+              } catch (e) {
+                return 'Recently';
+              }
+            })()}
+          </p>
+          
+          <div class="card-actions justify-end">
+            <button
+              onclick="openFile('${file.url}', '${file.filename}', '${file.contentType}')"
+              class="btn btn-primary btn-sm"
+            >
+              ${file.contentType.startsWith('video/') ? 'Play' : 'Open'}
+            </button>
+            <button
+              onclick="copyToClipboard('${file.url}')"
+              class="btn btn-outline btn-sm"
+              id="copy-${file.key}"
+            >
+              Copy URL
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    filesList.innerHTML = `
+      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        ${filesHtml}
+      </div>
+    `;
+  }
+
+  function renderEmptyState() {
+    if (!filesList) return;
+    
+    filesList.innerHTML = `
+      <div class="text-center py-12 opacity-50">
+        <div class="text-4xl mb-4">📂</div>
+        <p>No files uploaded yet</p>
+        <p class="text-sm">Upload your first file to get started</p>
+      </div>
+    `;
+  }
+
+  // Custom upload handler for signed URL approach
+  uppy.on('file-added', async (file: any) => {
+    try {
+      showStatus('Starting upload...', 'info');
+      showProgress();
+      updateProgress(0, `Preparing to upload ${file.data.name}...`);
+      
+      let result;
+      
+      // Check file size and choose upload method
+      if (file.data.size > 100 * 1024 * 1024) {
+        // Large file - use multipart upload
+        console.log('Large file detected, using multipart upload');
+        updateProgress(5, `Large file detected, using multipart upload for ${file.data.name}...`);
+        const { uploadFileMultipart } = await import('../utils/file-api.js');
+        result = await uploadFileMultipart(file.data, (progress: any) => {
+          console.log(`Multipart upload progress: ${progress.percent.toFixed(1)}%`);
+          updateProgress(progress.percent, `Uploading ${file.data.name}...`);
+        });
+      } else {
+        // Small file - use regular upload
+        updateProgress(5, `Uploading ${file.data.name}...`);
+        result = await uppyR2S3Uploader.uploadFile(file.data, {
+          onProgress: (progress) => {
+            console.log(`Upload progress: ${progress.percent.toFixed(1)}%`);
+            updateProgress(progress.percent, `Uploading ${file.data.name}...`);
+          },
+        });
+      }
+
+      if (result.success) {
+        updateProgress(100, `Upload complete!`);
+        setTimeout(() => {
+          hideProgress();
+          showStatus('File uploaded successfully!', 'success');
+        }, 1000);
+        loadFiles(); // Refresh file list
+        // Remove the file from Uppy's state
+        uppy.removeFile(file.id);
+      } else {
+        hideProgress();
+        showStatus(`Upload failed: ${result.error}`, 'error');
+        // Remove the file from Uppy's state
+        uppy.removeFile(file.id);
+      }
+    } catch (error) {
+      hideProgress();
+      showStatus(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+      // Remove the file from Uppy's state
+      uppy.removeFile(file.id);
+    }
+  });
+
+  // Handle upload event to prevent errors
+  uppy.on('upload', (data: any) => {
+    console.log('Uppy upload event triggered - handling manually');
+    // Since we handle uploads in file-added, we just need to prevent errors
+    // The upload will be handled by our custom file-added handler
+  });
+
+  // Also handle upload-error to prevent unhandled errors
+  uppy.on('upload-error', (file: any, error: any, response: any) => {
+    console.log('Uppy upload error:', error);
+    // Don't do anything - we handle errors in our custom upload process
+  });
+
+  async function handleDelete(key: string, filename: string) {
+    if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
+
+    try {
+      const response = await deleteFile(key);
+      if (response.success) {
+        showStatus('File deleted successfully!', 'success');
+        await loadFiles();
+      } else {
+        showStatus(response.error || 'Failed to delete file', 'error');
+      }
+    } catch (error) {
+      showStatus('Failed to delete file', 'error');
+    }
+  }
+
+  async function copyToClipboard(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      showStatus('URL copied to clipboard!', 'success');
+      
+      const button = document.getElementById(`copy-${url.split('/').pop()}`);
+      if (button) {
+        button.textContent = 'Copied!';
+        button.className = 'btn btn-success btn-sm';
+        setTimeout(() => {
+          button.textContent = 'Copy URL';
+          button.className = 'btn btn-outline btn-sm';
+        }, 2000);
+      }
+    } catch (error) {
+      showStatus('Failed to copy URL', 'error');
+    }
+  }
+
+  function openFile(url: string, filename?: string, contentType?: string) {
+    // Check if this is a video file
+    if (contentType && contentType.startsWith('video/')) {
+      openVideoModal(url, filename || 'Video');
+    } else {
+      window.open(url, '_blank');
+    }
+  }
+
+  function openVideoModal(videoUrl: string, title: string) {
+    if (!videoModal || !videoPlayer || !videoTitle) return;
+    
+    // Set video source and title
+    videoPlayer.src = videoUrl;
+    videoTitle.textContent = title;
+    
+    // Show modal
+    (videoModal as HTMLDialogElement).showModal();
+    
+    // Load video metadata
+    videoPlayer.load();
+  }
+
+  function closeVideoModal() {
+    if (!videoModal || !videoPlayer) return;
+    
+    // Pause and clear video
+    videoPlayer.pause();
+    videoPlayer.src = '';
+    
+    // Hide modal
+    (videoModal as HTMLDialogElement).close();
+  }
+
+  // Close modal when clicking outside
+  videoModal?.addEventListener('click', (e) => {
+    if (e.target === videoModal) {
+      closeVideoModal();
+    }
+  });
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && (videoModal as HTMLDialogElement)?.open) {
+      closeVideoModal();
+    }
+  });
+
+  // View mode functions
+  function switchViewMode(mode: 'table' | 'grid') {
+    currentViewMode = mode;
+    
+    // Update button styles
+    if (mode === 'table') {
+      tableViewBtn?.classList.add('btn-primary');
+      tableViewBtn?.classList.remove('btn-outline');
+      gridViewBtn?.classList.remove('btn-primary');
+      gridViewBtn?.classList.add('btn-outline');
+    } else {
+      gridViewBtn?.classList.add('btn-primary');
+      gridViewBtn?.classList.remove('btn-outline');
+      tableViewBtn?.classList.remove('btn-primary');
+      tableViewBtn?.classList.add('btn-outline');
+    }
+    
+    // Re-render files with new view mode
+    renderFiles(currentFiles);
+  }
+
+  // Selection functions
+  function toggleFileSelection(key: string) {
+    if (selectedFiles.has(key)) {
+      selectedFiles.delete(key);
+    } else {
+      selectedFiles.add(key);
+    }
+    updateBatchActions();
+  }
+
+  function toggleSelectAll(checkbox: HTMLInputElement) {
+    const fileCheckboxes = document.querySelectorAll('.file-checkbox') as NodeListOf<HTMLInputElement>;
+    
+    fileCheckboxes.forEach(cb => {
+      cb.checked = checkbox.checked;
+      if (checkbox.checked) {
+        selectedFiles.add(cb.dataset.key!);
+      } else {
+        selectedFiles.delete(cb.dataset.key!);
+      }
+    });
+    
+    updateBatchActions();
+  }
+
+  function selectAllFiles() {
+    selectedFiles.clear();
+    currentFiles.forEach(file => selectedFiles.add(file.key));
+    renderFiles(currentFiles);
+    updateBatchActions();
+  }
+
+  function deselectAllFiles() {
+    selectedFiles.clear();
+    renderFiles(currentFiles);
+    updateBatchActions();
+  }
+
+  function updateBatchActions() {
+    if (!batchActions || !selectedCount) return;
+    
+    if (selectedFiles.size > 0) {
+      batchActions.classList.remove('hidden');
+      selectedCount.textContent = `${selectedFiles.size} file${selectedFiles.size === 1 ? '' : 's'} selected`;
+    } else {
+      batchActions.classList.add('hidden');
+    }
+  }
+
+  async function deleteSelectedFiles() {
+    if (selectedFiles.size === 0) return;
+    
+    const fileNames = currentFiles
+      .filter(file => selectedFiles.has(file.key))
+      .map(file => file.filename)
+      .join(', ');
+    
+    if (!confirm(`Are you sure you want to delete ${selectedFiles.size} file${selectedFiles.size === 1 ? '' : 's'}?\n\n${fileNames}`)) {
+      return;
+    }
+
+    showStatus(`Deleting ${selectedFiles.size} file${selectedFiles.size === 1 ? '' : 's'}...`, 'info');
+    
+    const deletePromises = Array.from(selectedFiles).map(key => deleteFile(key));
+    
+    try {
+      await Promise.all(deletePromises);
+      showStatus(`Successfully deleted ${selectedFiles.size} file${selectedFiles.size === 1 ? '' : 's'}!`, 'success');
+      selectedFiles.clear();
+      await loadFiles(); // Refresh the file list
+    } catch (error) {
+      showStatus(`Failed to delete some files`, 'error');
+      console.error('Batch delete error:', error);
+    }
+  }
+
+  // Theme switching function
+  function setTheme(theme: string) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }
+
+  // Load saved theme on page load
+  const savedTheme = localStorage.getItem('theme') || 'dim';
+  setTheme(savedTheme);
+
+  // Initialize view mode
+  switchViewMode('grid');
+
+  // Make functions globally available for onclick handlers
+  (window as any).handleDelete = handleDelete;
+  (window as any).copyToClipboard = copyToClipboard;
+  (window as any).openFile = openFile;
+  (window as any).closeVideoModal = closeVideoModal;
+  (window as any).switchViewMode = switchViewMode;
+  (window as any).toggleFileSelection = toggleFileSelection;
+  (window as any).toggleSelectAll = toggleSelectAll;
+  (window as any).selectAllFiles = selectAllFiles;
+  (window as any).deselectAllFiles = deselectAllFiles;
+  (window as any).deleteSelectedFiles = deleteSelectedFiles;
+  (window as any).setTheme = setTheme;
+</script>

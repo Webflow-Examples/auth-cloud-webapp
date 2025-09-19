@@ -28,3 +28,107 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* WFVisualSans Font for Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-wf-visual-sans), "WFVisualSans", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-weight: 600;
+  font-size: 2.5rem;
+  line-height: 1.1;
+}
+
+h2 {
+  font-weight: 600;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+h3 {
+  font-weight: 500;
+  font-size: 1.75rem;
+  line-height: 1.3;
+}
+
+h4 {
+  font-weight: 500;
+  font-size: 1.5rem;
+  line-height: 1.4;
+}
+
+h5 {
+  font-weight: 500;
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+h6 {
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Ensure dark buttons have light text for accessibility */
+button[class*="bg-gray-"],
+button[class*="bg-blue-"],
+button[class*="bg-indigo-"],
+button[class*="bg-green-"],
+button[class*="bg-red-"],
+button[class*="bg-purple-"],
+button[class*="bg-slate-"],
+button[class*="bg-zinc-"],
+button[class*="bg-neutral-"],
+button[class*="bg-stone-"],
+button[class*="bg-orange-"],
+button[class*="bg-amber-"],
+button[class*="bg-yellow-"],
+button[class*="bg-lime-"],
+button[class*="bg-emerald-"],
+button[class*="bg-teal-"],
+button[class*="bg-cyan-"],
+button[class*="bg-sky-"],
+button[class*="bg-violet-"],
+button[class*="bg-fuchsia-"],
+button[class*="bg-pink-"],
+button[class*="bg-rose-"],
+.w-button,
+.primary-button:not(.cc-white-button) {
+  color: white !important;
+}
+
+/* Ensure white buttons have dark text */
+button[class*="bg-white"],
+.primary-button.cc-white-button {
+  color: #1a1b1f !important;
+}
+
+/* Tailwind utilities for WFVisualSans font */
+@layer utilities {
+  .font-wf-visual-sans {
+    font-family: var(--font-wf-visual-sans), "WFVisualSans", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .font-wf-visual-sans-medium {
+    font-family: var(--font-wf-visual-sans), "WFVisualSans", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 500;
+  }
+
+  .font-wf-visual-sans-semibold {
+    font-family: var(--font-wf-visual-sans), "WFVisualSans", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 600;
+  }
+}

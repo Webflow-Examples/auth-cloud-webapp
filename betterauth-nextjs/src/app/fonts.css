@@ -1,0 +1,46 @@
+/* WFVisualSans Font Family */
+@font-face {
+  font-family: "WFVisualSans";
+  src: url("/fonts/WFVisualSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WFVisualSans";
+  src: url("/fonts/WFVisualSans-RegularText.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WFVisualSans";
+  src: url("/fonts/WFVisualSans-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WFVisualSans";
+  src: url("/fonts/WFVisualSans-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WFVisualSans";
+  src: url("/fonts/WFVisualSans-SemiBoldText.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* CSS Variables for easy usage */
+:root {
+  --font-wf-visual-sans: "WFVisualSans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+}
