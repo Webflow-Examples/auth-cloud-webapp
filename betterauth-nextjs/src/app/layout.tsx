@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "@/devlink/global.css";
+import "./fonts.css";
 import "./globals.css";
 
 const inter = Inter({
@@ -32,6 +33,12 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased`}
+        style={
+          {
+            "--font-wf-visual-sans":
+              'WFVisualSans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          } as React.CSSProperties
+        }
       >
         {children}
       </body>

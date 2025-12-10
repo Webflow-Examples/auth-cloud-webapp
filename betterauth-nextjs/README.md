@@ -45,9 +45,9 @@ Once you have a Webflow site you want to deploy this app on, generate an auth to
 - In the terminal, run `webflow auth login --force` to authorize the Webflow Cloud app to your site
 - Once complete, you should see a `.env` file with the `WEBFLOW_SITE_API_TOKEN` and `WEBFLOW_SITE_ID` variables filled in
 
-#### Create a `.dev.vars` file
+#### Create a `.env` file
 
-- In your editor, duplicate `.dev.vars.template`, rename the copy to `.dev.vars`, and fill in the required values:
+- In your editor, duplicate `.env.example`, rename the copy to `.env`, and fill in the required values:
   - Set the `WEBFLOW_SITE_ID` and `WEBFLOW_SITE_API_TOKEN` variables with the relevant values from `.env`
   - `BETTER_AUTH_URL`: Set this to your localhost port (e.g., `http://localhost:3000`)
   - `BETTER_AUTH_SECRET`: Run the following command in the terminal and set this variable value to the output
@@ -76,16 +76,16 @@ The development server will start and automatically show you where to navigate:
 
 ```
 🚀 Starting development server...
-📍 App will be available at: http://localhost:3000/app
+📍 App will be available at: http://localhost:3000/files-next
 ```
 
-Open [http://localhost:3000/app](http://localhost:3000/app) in your browser to see the authentication app. You can:
+Open [http://localhost:3000/files-next](http://localhost:3000/files-next) in your browser to see the authentication app. You can:
 
-- Sign up for a new account at `/app/signup`
-- Log in with existing credentials at `/app/login`
-- Access the protected homepage after authentication at `/app`
+- Sign up for a new account at `/files-next/signup`
+- Log in with existing credentials at `/files-next/login`
+- Access the protected homepage after authentication at `/files-next`
 
-**Note:** The mount/base path for this Webflow Cloud app is at `/app` by default.
+**Note:** The mount/base path for this Webflow Cloud app is at `/files-next` by default.
 
 ### 7. (Optional) Sync DevLink
 
@@ -109,7 +109,7 @@ Back in the Webflow Cloud page, click the "Create New Project" button and follow
 When you are prompted to create an **Environment**:
 
 1. **Branch** - Select the GitHub branch you're working from (usually `main`)
-2. **Mount Path** - Enter the mount path where you want the app to live (e.g., `/app` by default)
+2. **Mount Path** - Enter the mount path where you want the app to live (e.g., set `/files-next` as the value)
 
 After the project is created, click "Publish" to re-publish your Webflow site. Once publishing completes, open your Webflow Cloud project, navigate into the **Environments**, then select the `main` branch name to view **Deployments**.
 
@@ -124,7 +124,7 @@ On the **Deployments** page, open the "Environment Variables" tab and add the fo
 
 Click the "Deploy latest commit" button to build and deploy the latest app from your repo.
 
-After a few minutes, you can click the "Environment URL", which should be where the app is deployed to on your site (i.e. `https://{your-site-here}.webflow.io/app`).
+After a few minutes, you can click the "Environment URL", which should be where the app is deployed to on your site (i.e. `https://{your-site-here}.webflow.io/files-next`).
 
 At this point, you should be able to test out the sign up/login flow as you did on localhost and verify the functionality works the same. If so, congrats! You've deployed a Webflow Cloud app with an authentication flow 🎉
 

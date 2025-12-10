@@ -11,12 +11,21 @@
   "observability": {
     "enabled": true
   },
+  "limits": {
+    "cpu_ms": 30000
+  },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "demo",
-      "database_id": "0",
+      "database_id": "123",
+      "database_name": "DB",
       "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "USER_AVATARS",
+      "bucket_name": "user-avatars"
     }
   ]
 }

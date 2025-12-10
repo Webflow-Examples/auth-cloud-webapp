@@ -72,17 +72,17 @@ npm install
 ```
 
 ```bash
-npm run dev
+npm run preview
 ```
 
-The development server will start and automatically show you where to navigate:
+The local server will start and automatically show you where to navigate:
 
 ```
-🚀 Starting development server...
-📍 App will be available at: http://localhost:4321/app
+⎔ Starting local server...
+[wrangler:info] Ready on http://localhost:8787/app
 ```
 
-Open [http://localhost:4321/app](http://localhost:4321/app) in your browser to see the authentication app. You can:
+Open [http://localhost:8787/app](http://localhost:8787/app) in your browser to see the authentication app. You can:
 
 - Sign up for a new account at `/app/signup`
 - Log in with existing credentials at `/app/login`
@@ -132,14 +132,6 @@ After a few minutes, you can click the "Environment URL", which should be where 
 At this point, you should be able to test out the sign up/login flow as you did on localhost and verify the functionality works the same. If so, congrats! You've deployed a Webflow Cloud app with an authentication flow 🎉
 
 If you make additional changes to your project, simply push them up to your repo on `main`, and Webflow will automatically kick off a new deployment with your changes. Also, if your deployment build fails for any reason, check the "Deployment History" for more logs.
-
-## Build Locally
-
-To check a build locally before Webflow kicks off a build and deploys the latest changes, simply run the following commands:
-
-```bash
-npm run preview
-```
 
 ## Schema Changes
 

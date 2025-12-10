@@ -5,6 +5,7 @@ import { Section, Block, Link } from "@/devlink/_Builtin";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import os from "os";
+import config from "../../next.config";
 
 export default function Home() {
   const { data: session, isPending } = useSession();
@@ -14,12 +15,6 @@ export default function Home() {
     if (!isPending && !session) {
       router.push("/login");
     }
-    console.log("OS Debug Info:", {
-      platform: os.platform(),
-      arch: os.arch(),
-      hostname: os.hostname(),
-      release: os.release(),
-    });
   }, [session, isPending, router]);
 
   if (isPending) {
@@ -55,7 +50,7 @@ export default function Home() {
           }}
         >
           <h1
-            className="margin-bottom-24px"
+            className="margin-bottom-24px font-wf-visual-sans-semibold"
             style={{
               fontSize: "2.5rem",
               fontWeight: 700,
@@ -65,12 +60,62 @@ export default function Home() {
               backgroundClip: "text",
             }}
           >
-            {`Welcome to Webflow Cloud, ${session.user?.name}`}
+            {`Welcome to Webflow Cloud`}
           </h1>
+          <h2 className="margin-bottom-24px">{`${session.user?.name}`}</h2>
           <Block tag="p" className="margin-bottom-24px">
             This is a simple test using Basic components with enhanced styling.
           </Block>
-          <div>
+          <div
+            style={{
+              display: "flex",
+              gap: "1rem",
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <Link
+              button={true}
+              options={{
+                href: `${config.basePath}/profile`,
+              }}
+              className="button-primary"
+              style={{
+                background: "#28a745",
+                color: "white",
+                border: "none",
+                padding: "0.75rem 1.5rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              Account Details
+            </Link>
+            <Link
+              button={true}
+              options={{
+                href: `${config.basePath}/files`,
+              }}
+              className="button-primary"
+              style={{
+                background: "#007bff",
+                color: "white",
+                border: "none",
+                padding: "0.75rem 1.5rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              File Manager
+            </Link>
             <Link
               button={true}
               options={{
@@ -80,32 +125,28 @@ export default function Home() {
                 await signOut({
                   fetchOptions: {
                     onSuccess: () => {
-                      router.push("/login");
+                      router.push(`${config.basePath}/login`);
                     },
                   },
                 });
               }}
               data-action="sign-out"
               className="button-primary"
+              style={{
+                background: "#6c757d",
+                color: "white",
+                border: "none",
+                padding: "0.75rem 1.5rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
             >
               Log out
             </Link>
-            {/* <Link
-              button={true}
-              onClick={async () => {
-                await signOut({
-                  fetchOptions: {
-                    onSuccess: () => {
-                      router.push("/login");
-                    },
-                  },
-                });
-              }}
-              data-action="sign-out"
-              className="button-primary"
-            >
-              Log out
-            </Link> */}
           </div>
         </Block>
       </Block>

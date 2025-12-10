@@ -19,6 +19,11 @@
       "allowTelemetry": true,
       "lastPrompted": 1752013838869,
       "version": "1.8.13"
+    },
+    "global": {
+      "allowTelemetry": true,
+      "lastPrompted": 1754935538518,
+      "version": "1.8.22"
     }
   }
 }
